@@ -5,7 +5,10 @@
 __pycache__/
 .venv/
 
-# FPGA ビルド生成物
+# Node.js
+node_modules/
+
+# ビルド生成物
 build/
 
 # データシートの PDF はコミットしない (Markdown だけを datasheets/ に置く)
