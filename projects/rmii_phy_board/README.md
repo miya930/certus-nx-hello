@@ -1,6 +1,4 @@
----
-title: 3 ポート RMII PHY 基板
----
+# 3 ポート RMII PHY 基板
 
 [SatCat5 Ethernet スイッチ](../rmii_switch/README.md) の Ethernet ポートは、PMOD Header に挿す PHY 基板で用意する。
 この基板の回路図と基板のデータは、このフォルダに置く。
