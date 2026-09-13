@@ -36,6 +36,19 @@ constant PORT_TOTAL     : positive := PORT_COUNT + 1;
 constant CFG_PORT       : natural := PORT_COUNT;
 constant CFG_DEV_ADDR   : integer := 0;
 
+-- PHY 基板の LAN8742A が出す受信データは、REF_CLK の立ち上がりの TOINVLD 後から TOVAL 後まで変化する。
+-- 入力遅延を d とすると、ホールドには TH - d <= TOINVLD、セットアップには TOVAL + TSU + d <= 周期が必要で、d をその中央に置く。
+-- LAN8742A の値は DS_LAN8742_00001989A.md の RMII Timing (REF_CLK In Mode) の表、
+-- Certus-NX の値は FPGA-DS-02078-2-5-Certus-NX-Family.md の External Switching Characteristics の表の -8 で、PLL を使わない場合による。
+-- この表は専用のクロック入力ピンでの値で、PMOD の REF_CLK は一般のピンなので、実機での確認が必要である。
+constant REF_CLK_PERIOD_NSEC    : real := 1.0e9 / real(CORE_CLK_HZ);
+constant PHY_TOVAL_MAX_NSEC     : real := 15.0;
+constant PHY_TOINVLD_MIN_NSEC   : real := 3.0;
+constant FPGA_TSU_NSEC          : real := 0.0;
+constant FPGA_TH_NSEC           : real := 3.32;
+constant RXDAT_DELAY_NSEC       : real :=
+    ((FPGA_TH_NSEC - PHY_TOINVLD_MIN_NSEC) + (REF_CLK_PERIOD_NSEC - PHY_TOVAL_MAX_NSEC - FPGA_TSU_NSEC)) / 2.0;
+
 signal vclka    : std_logic := '0';
 signal ref_time : port_timeref;
 
@@ -76,9 +89,12 @@ u_cfgbus : entity work.port_cfgbus
 
 gen_port : for n in 0 to PORT_COUNT-1 generate
     -- REF_CLK が止まったことを検出するため、別のクロックとして SYSTEM_25M_CLK を使う。
+    -- 送信データは、LAN8742A のセットアップ時間を満たすため REF_CLK の立ち上がりで出す。
     u_port : entity work.port_rmii
         generic map(
         MODE_CLKOUT => false,
+        MODE_CLKDDR => false,
+        RXDAT_DELAY => RXDAT_DELAY_NSEC,
         VCONFIG     => VCONFIG)
         port map(
         rmii_txd    => rmii_txd(2*n+1 downto 2*n),
