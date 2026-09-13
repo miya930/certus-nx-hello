@@ -1,0 +1,13 @@
+--- a/src/vhdl/common/switch_core.vhd
++++ b/src/vhdl/common/switch_core.vhd
+@@ -424,7 +424,9 @@
+         IBUF_KBYTES     => IBUF_KBYTES,
+         IBUF_PACKETS    => IBUF_PACKETS)
+         port map(
+-        rx_clk          => pktin_clk(n),
++        -- 代入を挟んだクロックはポートのデータと同じデルタで変化し、シミュレーションで同じエッジのデータを取り込むため、
++        -- ポートのクロックを直接渡す。
++        rx_clk          => ports_rx_data(n).clk,
+         rx_data         => ports_rx_data(n).data,
+         rx_last         => ports_rx_data(n).last,
+         rx_write        => ports_rx_data(n).write,

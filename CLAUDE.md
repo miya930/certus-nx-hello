@@ -20,20 +20,24 @@
 ## リポジトリ構成
 
 - リポジトリ外のローカルファイルに依存しない。
-  SatCat5 などの外部 HDL は、リポジトリ内に取り込むか git submodule として参照する。
+  SatCat5 などの外部 HDL は、`external/` に git submodule として置く。
+- プロジェクトは `projects/<name>/` に置き、HDL、制約、パッチ、Makefile などのファイルは全てその中に置く。
+  トップディレクトリに HDL 用のフォルダを作らない。
+- 合成から配置配線までの手順は、プロジェクトの Makefile にまとめる。
 - `tools/` の Python スクリプトは PEP 723 のインラインメタデータで依存を宣言し、`uv run` だけで動くようにする。
 - ビルド生成物は `build/` に出し、コミットしない。
 
 ## ツールチェーン
 
+- ツールは OSS CAD Suite でそろえる。
 - 合成は yosys の `synth_nexus` を使う。
 - SatCat5 は VHDL で書かれているため、ghdl-yosys-plugin を使って yosys に読み込む。
 - 配置配線は nextpnr-nexus、ビットストリーム生成は prjoxide を使う。
 - 書き込みは openFPGALoader を使い、ボード指定は `certusnx_versa_evn` とする。
+- 新しいプロジェクトの Makefile は `projects/rmii_switch/Makefile` を元に作る。
+  GHDL と nextpnr-nexus で必要になる対処が入っている。
 
 ```sh
-yosys -m ghdl -p "ghdl <vhdl files> -e top; synth_nexus -top top -json build/top.json"
-nextpnr-nexus --device LFD2NX-40-8BG256C --pdc top.pdc --json build/top.json --fasm build/top.fasm
 prjoxide pack build/top.fasm build/top.bit
 openFPGALoader -b certusnx_versa_evn build/top.bit      # SRAM に書き込む
 openFPGALoader -b certusnx_versa_evn -f build/top.bit   # SPI Flash に書き込む
@@ -41,6 +45,8 @@ openFPGALoader -b certusnx_versa_evn -f build/top.bit   # SPI Flash に書き込
 
 - 制約は Radiant の LDC と同じ書式の PDC ファイルで与える。
   ピンは `ldc_set_location`、I/O 規格とプルは `ldc_set_port -iobuf` で指定する。
+- nextpnr-nexus はピンを割り当てていない I/O を扱えないため、全ての I/O にピンを割り当てる。
+- PDC の `create_clock` は内部のクロック網に伝わらないため、クロックの目標周波数は nextpnr-nexus の `--freq` で与える。
 
 ```tcl
 ldc_set_location -site {B3} [get_ports {led[0]}]
