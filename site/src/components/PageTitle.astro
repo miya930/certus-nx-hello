@@ -1,0 +1,18 @@
+---
+// 表示名の直下に、最終更新日を出す。
+import DefaultPageTitle from '@astrojs/starlight/components/PageTitle.astro';
+import DefaultLastUpdated from '@astrojs/starlight/components/LastUpdated.astro';
+---
+
+<DefaultPageTitle />
+<div class="page-meta">
+  <DefaultLastUpdated />
+</div>
+
+<style>
+  .page-meta {
+    margin-top: 0.25rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

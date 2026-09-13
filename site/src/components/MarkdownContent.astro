@@ -1,0 +1,102 @@
+---
+// 本文の画像を、ページの中で拡大、縮小、移動できるようにする。
+import DefaultMarkdownContent from '@astrojs/starlight/components/MarkdownContent.astro';
+---
+
+<DefaultMarkdownContent><slot /></DefaultMarkdownContent>
+
+<script>
+  import Panzoom from '@panzoom/panzoom';
+
+  for (const img of document.querySelectorAll<HTMLImageElement>('.sl-markdown-content img')) {
+    const frame = document.createElement('div');
+    frame.className = 'zoomable not-content';
+    const toolbar = document.createElement('div');
+    toolbar.className = 'zoomable-toolbar';
+    const viewport = document.createElement('div');
+    viewport.className = 'zoomable-viewport';
+    img.replaceWith(frame);
+    frame.append(toolbar, viewport);
+    viewport.append(img);
+    img.draggable = false;
+
+    // 拡大していないときは、画像の上でもページをスクロールできるようにする。
+    const panzoom = Panzoom(img, {
+      minScale: 1,
+      maxScale: 8,
+      contain: 'outside',
+      panOnlyWhenZoomed: true,
+      cursor: 'default',
+      touchAction: 'auto',
+    });
+    img.addEventListener('panzoomchange', (event) => {
+      const zoomed = (event as CustomEvent<{ scale: number }>).detail.scale > 1;
+      panzoom.setOptions({ cursor: zoomed ? 'move' : 'default', touchAction: zoomed ? 'none' : 'auto' });
+    });
+
+    // ホイールだけではページをスクロールし、Ctrl か Command を押しているときに拡大、縮小する。
+    viewport.addEventListener('wheel', (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        panzoom.zoomWithWheel(event);
+      }
+    });
+
+    const buttons: [string, string, () => void][] = [
+      ['＋', '拡大', () => panzoom.zoomIn()],
+      ['−', '縮小', () => panzoom.zoomOut()],
+      ['元に戻す', '元の大きさに戻す', () => panzoom.reset()],
+    ];
+    for (const [text, label, action] of buttons) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = text;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', action);
+      toolbar.append(button);
+    }
+  }
+</script>
+
+<style is:global>
+  .zoomable {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .zoomable-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .zoomable-toolbar button {
+    padding: 0.125rem 0.5rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    cursor: pointer;
+  }
+
+  .zoomable-toolbar button:hover {
+    background: var(--sl-color-gray-6);
+  }
+
+  .zoomable-viewport {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    line-height: 0;
+  }
+
+  /* not-content を付けると Starlight の本文の画像の指定が外れるため、ここで幅を本文に合わせる。 */
+  .zoomable-viewport img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+</style>
