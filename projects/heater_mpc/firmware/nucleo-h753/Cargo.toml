@@ -1,0 +1,30 @@
+[package]
+name = "nucleo-h753"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+control = { path = "../control" }
+cortex-m = { version = "0.7.6", features = ["inline-asm", "critical-section-single-core"] }
+cortex-m-rt = "0.7.0"
+defmt = "1.0.1"
+defmt-rtt = "1.0.0"
+embassy-executor = { version = "0.10.0", features = ["platform-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
+embassy-futures = "0.1.2"
+embassy-net = { version = "0.9.1", features = ["defmt", "udp", "proto-ipv4", "medium-ethernet"] }
+embassy-stm32 = { version = "0.6.0", features = ["defmt", "stm32h753zi", "time-driver-tim2", "memory-x"] }
+embassy-sync = { version = "0.8.0", features = ["defmt"] }
+embassy-time = { version = "0.5.1", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
+heapless = "0.9"
+panic-probe = { version = "1.0.0", features = ["print-defmt"] }
+static_cell = "2"
+
+# MPC の行列演算は最適化しないと制御周期に間に合わないため、dev でも最適化する。
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+debug = 2
+lto = "fat"
+opt-level = 3
