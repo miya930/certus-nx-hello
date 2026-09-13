@@ -20,7 +20,7 @@
 ## リポジトリ構成
 
 - リポジトリ外のローカルファイルに依存しない。
-  SatCat5 などの外部 HDL は、`external/` に git submodule として置く。
+  SatCat5 などの外部 HDL は、`third_party/` に git submodule として置く。
 - プロジェクトは `projects/<name>/` に置き、HDL、制約、パッチ、Makefile などのファイルは全てその中に置く。
   トップディレクトリに HDL 用のフォルダを作らない。
 - 合成から配置配線までの手順は、プロジェクトの Makefile にまとめる。
