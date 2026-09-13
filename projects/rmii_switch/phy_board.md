@@ -8,6 +8,17 @@ rmii_switch の Ethernet ポートは、PMOD Header に挿す PHY 基板で用�
 - J8、J5、J6 は、ボードの同じ辺に左からこの順に並ぶ直角のコネクタである。
   PHY 基板は、この 3 つのヘッダにまとめて挿す。
 - 基板の外形とヘッダの間隔は、ボードの実物で寸法を測って決める。
+- PHY まわりの回路は、`datasheets/LAN8742A-QFN-Rev-A-Schematic-Checklist.md` に従う。
+
+## RJ45
+
+- RJ45 は、磁気部品と LED を内蔵した HanRun の HR911105A を使う。
+  JLCPCB の実装に使える部品で、LCSC の部品番号は C12074 である。
+- HR911105A は送信側と受信側の磁気部品が対称で、Auto-MDIX に使える。
+  LAN8742A の Auto-MDIX には対称な磁気部品が必要だと、Schematic Checklist に書かれている。
+- 送信側と受信側のセンタータップは別のピンに出ており、Schematic Checklist のとおりに LAN8742A 側でつなげる。
+- ケーブル側の終端は HR911105A に内蔵されているため、PHY 基板には置かない。
+- HR911105A のデータシートは PDF から Markdown に変換できなかったため、LCSC の C12074 のページから取得して見る。
 
 ## ピン配置
 
@@ -76,6 +87,9 @@ LAN8742A はストラップで設定する。
 ## クロック
 
 - PHY 基板に 50 MHz の発振器を 1 つ置き、3 つの LAN8742A の XTAL1/CLKIN と、J5 の REF_CLK に分配する。
+- 分配にはファンアウトバッファを使わず、発振器の出力から 4 本に分け、それぞれにダンピング抵抗を入れる。
+  発振器から PHY と MAC に分けるときに、それぞれへ直列抵抗を入れることが Schematic Checklist で推奨されている。
+- 発振器は、4 か所の負荷をまとめて駆動できるものを選ぶ。
 - LAN8742A は REF_CLK In Mode で使う。
   REF_CLK Out Mode は RMII の規格外で、MAC とのタイミング解析が必要だとデータシートに書かれているためである。
 - 発振器は、LAN8742A のデータシートの RMII CLKIN Requirements の表を満たすものを選ぶ。
