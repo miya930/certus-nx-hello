@@ -19,7 +19,7 @@ PDF と Markdown は、`.gitignore` で除外している。
 2. 変換する。
 
    ```sh
-   uv run tools/pdf2md.py <path/to/file.pdf> [...]
+   uv run tools/pdf2md/pdf2md.py <path/to/file.pdf> [...]
    ```
 
    出力は `datasheets/<PDF と同じ名前>.md` になる。
@@ -29,7 +29,7 @@ PDF と Markdown は、`.gitignore` で除外している。
 3. 変換結果を確認する。
 
    - ログの `removed boilerplate:` に、著作権表記などの定型文だけが出ていることを確認する。
-     本文の注記や表の説明が含まれていたら、`tools/pdf2md.py` のしきい値を見直す。
+     本文の注記や表の説明が含まれていたら、`tools/pdf2md/pdf2md.py` のしきい値を見直す。
    - `grep -n "^## " datasheets/<name>.md` で章見出しが揃っていることを確認する。
    - ピン表など、このリポジトリで使う表がいくつか `|` 区切りの表として読めることを確認する。
 
@@ -43,6 +43,6 @@ PDF と Markdown は、`.gitignore` で除外している。
 
 ## 注意
 
-- 生成した Markdown は手で編集しない。直したい場合は `tools/pdf2md.py` を直して再変換する。
+- 生成した Markdown は手で編集しない。直したい場合は `tools/pdf2md/pdf2md.py` を直して再変換する。
 - 回路図と BOM のページは図中テキストが崩れる。
   内容を読み取れない場合は、PDF が手元にあれば Read ツールで該当ページを開き、なければユーザーに確認してもらう。
