@@ -12,19 +12,19 @@ export function OptimizationCard({ result, onClose }: Props) {
     <section className="card optimization">
       <header className="card-header">
         <h2>
-          Optimization result <span className="muted">{result.seconds.toFixed(0)} s</span>
+          最適化の結果 <span className="muted">{result.seconds.toFixed(0)} s</span>
         </h2>
         <button type="button" className="ghost-button" onClick={onClose}>
-          Close
+          閉じる
         </button>
       </header>
       <p className="muted">
-        見つかった値は Setup に書き戻した。Run simulation を押すと、この値で PID と MPC を実行する。誤差は参照軌道に対する平均絶対誤差である。
+        見つかった値は設定に書き戻した。「シミュレーションを実行」を押すと、この値で PID と MPC を実行する。誤差は参照軌道に対する平均絶対誤差である。
       </p>
       <div className="optimization-columns">
         {pid && (
           <div>
-            <h3>PID: Kp, Ti, Td by Nelder–Mead</h3>
+            <h3>PID: Nelder–Mead 法で Kp、Ti、Td を探索</h3>
             <table className="data-table">
               <thead>
                 <tr>
@@ -38,19 +38,19 @@ export function OptimizationCard({ result, onClose }: Props) {
                   <th>
                     <Tex math="T_d" /> [s]
                   </th>
-                  <th>Error on board [K]</th>
+                  <th>基板での誤差 [K]</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>Start (IMC, λ = 0.5τ)</td>
+                  <td>開始 (IMC、λ = 0.5τ)</td>
                   <td>{pid.start.kp.toFixed(4)}</td>
                   <td>{pid.start.ti.toFixed(1)}</td>
                   <td>{pid.start.td.toFixed(2)}</td>
                   <td>{pid.start.plantError.toFixed(3)}</td>
                 </tr>
                 <tr>
-                  <td>Optimized</td>
+                  <td>最適化後</td>
                   <td className="diagonal">{pid.kp.toFixed(4)}</td>
                   <td className="diagonal">{pid.ti.toFixed(1)}</td>
                   <td className="diagonal">{pid.td.toFixed(2)}</td>
@@ -59,13 +59,13 @@ export function OptimizationCard({ result, onClose }: Props) {
               </tbody>
             </table>
             <p className="muted small">
-              {pid.evaluations} evaluations on a 2 mm model, search error {pid.searchError.toFixed(3)} K, then verified on the 1 mm board.
+              2 mm 格子のモデルで {pid.evaluations} 回評価し (探索中の誤差 {pid.searchError.toFixed(3)} K)、1 mm の基板で確かめた。
             </p>
           </div>
         )}
         {mpc && (
           <div>
-            <h3>MPC: move weight λ, then control horizon Nc</h3>
+            <h3>MPC: λ、次に Nc を候補から選択</h3>
             <table className="data-table">
               <thead>
                 <tr>
@@ -75,7 +75,7 @@ export function OptimizationCard({ result, onClose }: Props) {
                   <th>
                     <Tex math="N_c" />
                   </th>
-                  <th>Error on board [K]</th>
+                  <th>基板での誤差 [K]</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,8 +92,8 @@ export function OptimizationCard({ result, onClose }: Props) {
               </tbody>
             </table>
             <p className="muted small">
-              Start λ = {mpc.start.moveWeight}, Nc = {mpc.start.controlHorizon}: {mpc.start.plantError.toFixed(3)} K. Best: λ = {mpc.moveWeight}, Nc = {mpc.controlHorizon}:{" "}
-              {mpc.plantError.toFixed(3)} K.
+              開始 λ = {mpc.start.moveWeight}、Nc = {mpc.start.controlHorizon}: {mpc.start.plantError.toFixed(3)} K。最良 λ = {mpc.moveWeight}、Nc = {mpc.controlHorizon}:{" "}
+              {mpc.plantError.toFixed(3)} K。
             </p>
           </div>
         )}

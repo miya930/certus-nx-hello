@@ -68,10 +68,10 @@ export function LoopPanel({ result, name, selected, onSelect, time, onSeek }: Pr
     <section className="card">
       <header className="card-header">
         <h2>
-          Loop {style.label} <span className="muted">PV / SV / MV</span>
+          ループ {style.label} <span className="muted">PV / SV / MV</span>
         </h2>
         <label className="inline-field">
-          Heater
+          ヒーター
           <select value={selected} onChange={(event) => onSelect(Number(event.target.value))}>
             {controller.pv[0].map((_, i) => (
               <option key={i} value={i}>
@@ -103,7 +103,7 @@ export function LoopPanel({ result, name, selected, onSelect, time, onSeek }: Pr
         tooltip={readout}
         height={CHART_HEIGHT}
       />
-      <div className="chart-caption">MV (heater power)</div>
+      <div className="chart-caption">MV (ヒーターの電力)</div>
       <TimeSeriesChart
         label={`${style.label} manipulated value`}
         unit="W"

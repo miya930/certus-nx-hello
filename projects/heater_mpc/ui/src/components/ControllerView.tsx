@@ -30,8 +30,8 @@ interface Props {
 }
 
 const DESCRIPTIONS: Record<ControllerName, string> = {
-  PID: "Independent PID loops. Each heater only sees its own thermistor.",
-  MPC: "One model predictive controller that plans all heater powers together along the reference trajectory.",
+  PID: "ヒーターごとに独立した PID ループ。各ヒーターは自分のサーミスタしか見ない。",
+  MPC: "1 つのモデル予測制御器が、参照軌道に沿って全ヒーターの電力をまとめて計画する。",
 };
 
 export function ControllerView(props: Props) {
@@ -55,7 +55,7 @@ export function ControllerView(props: Props) {
       <div className="view-top">
         <section className="card">
           <header className="card-header">
-            <h2>Board temperature</h2>
+            <h2>基板の温度分布</h2>
             <ColorScale domain={props.domain} />
           </header>
           <BoardHeatmap
@@ -75,7 +75,7 @@ export function ControllerView(props: Props) {
             duration={duration}
             playing={playback.playing}
             speed={playback.speed}
-            phaseLabel={`Phase ${phaseIndex + 1} / ${result.phases.length}`}
+            phaseLabel={`段階 ${phaseIndex + 1} / ${result.phases.length}`}
             onToggle={playback.togglePlaying}
             onSeek={playback.setTime}
             onSpeed={playback.setSpeed}
@@ -85,7 +85,7 @@ export function ControllerView(props: Props) {
           <StatTiles name={name} metrics={props.metrics} />
           <section className="card">
             <header className="card-header">
-              <h2>{name} parameters</h2>
+              <h2>{name} のパラメータ</h2>
             </header>
             <ControllerParameters name={name} result={result} />
           </section>
@@ -95,12 +95,12 @@ export function ControllerView(props: Props) {
       <section className="card">
         <header className="card-header">
           <h2>
-            Thermistors <span className="muted">PV, all heaters</span>
+            サーミスタの温度 <span className="muted">全ヒーターの PV</span>
           </h2>
         </header>
         <div className="overlay-layout">
           <OverlayChart
-            label="All thermistor temperatures"
+            label="全サーミスタの温度"
             unit="°C"
             digits={1}
             cols={result.cols}
@@ -136,11 +136,11 @@ export function ControllerView(props: Props) {
       <section className="card">
         <header className="card-header">
           <h2>
-            Heater power <span className="muted">MV, all heaters</span>
+            ヒーターの電力 <span className="muted">全ヒーターの MV</span>
           </h2>
         </header>
         <OverlayChart
-          label="All heater powers"
+          label="全ヒーターの電力"
           unit="W"
           digits={3}
           cols={result.cols}

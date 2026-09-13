@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type ControllerName,
   fetchOptimization,
@@ -10,10 +10,10 @@ import {
   type SimulationResult,
 } from "./api";
 import { ControllerView } from "./components/ControllerView";
-import { Notes } from "./components/Notes";
+import { Notes, NOTES_SECTIONS } from "./components/Notes";
 import { OptimizationCard } from "./components/OptimizationCard";
 import { SetupPanel } from "./components/SetupPanel";
-import { Tabs } from "./components/Tabs";
+import { type Page, Sidebar } from "./components/Sidebar";
 import { controllerMetrics } from "./metrics";
 import { presetPhases } from "./presets";
 import { usePlayback } from "./usePlayback";
@@ -26,10 +26,12 @@ const DEFAULT_REQUEST: SimulationRequest = {
   pid: { mode: "imc", lambdaRatio: 0.5, optimize: false, kp: 0.065, ti: 59, td: 0.5 },
   mpc: { sampleTime: 5, horizon: 60, controlHorizon: 10, moveWeight: 100 },
 };
-const TABS = ["PID", "MPC", "Notes"] as const;
-type Tab = (typeof TABS)[number];
+const CONTROLLERS: ControllerName[] = ["PID", "MPC"];
 
 export function App() {
+  const [page, setPage] = useState<Page>("simulation");
+  const [pendingSection, setPendingSection] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [request, setRequest] = useState(DEFAULT_REQUEST);
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [optimization, setOptimization] = useState<OptimizationResult | null>(null);
@@ -38,10 +40,19 @@ export function App() {
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [setupOpen, setSetupOpen] = useState(true);
-  const [tab, setTab] = useState<Tab>("PID");
+  const [controller, setController] = useState<ControllerName>("PID");
   const [hovered, setHovered] = useState<number | null>(null);
   const [selected, setSelected] = useState(4);
   const playback = usePlayback(result ? (result.sv.length - 1) * result.timeStep : DEFAULT_DURATION);
+
+  // ノートのページに切り替わってから、選んだ節までスクロールする。
+  useEffect(() => {
+    if (page === "notes" && pendingSection) {
+      document.getElementById(pendingSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActiveSection(pendingSection);
+      setPendingSection(null);
+    }
+  }, [page, pendingSection]);
 
   const run = useCallback(async () => {
     setRunning(true);
@@ -67,7 +78,7 @@ export function App() {
       try {
         const found = await fetchOptimization(request, target, setProgress);
         setOptimization(found);
-        // 見つかった値を Setup に書き戻し、次の Run で使えるようにする。
+        // 見つかった値を設定に書き戻し、次の実行で使えるようにする。
         setRequest((current) => ({
           ...current,
           pid: found.pid ? { ...current.pid, mode: "explicit", kp: found.pid.kp, ti: found.pid.ti, td: found.pid.td } : current.pid,
@@ -102,61 +113,79 @@ export function App() {
   }, [metrics, result]);
 
   const busy = running || optimizing;
-  const status = running ? "Simulating" : optimizing ? "Optimizing" : error ? "Error" : result ? "Ready" : "Idle";
+  const statusText = running ? "計算中" : optimizing ? "最適化中" : error ? "エラー" : result ? "結果あり" : "待機";
+  const status = <span className={`status ${busy ? "running" : error ? "error" : result ? "ready" : ""}`}>{statusText}</span>;
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div>
-          <h1>Heater MPC Simulator</h1>
-          <p className="muted">Chip heaters and thermistors on one FR4 board — PID vs model predictive control</p>
-        </div>
-        <span className={`status ${busy ? "running" : error ? "error" : result ? "ready" : ""}`}>{status}</span>
-      </header>
-
-      <SetupPanel
-        request={request}
-        running={running}
-        optimizing={optimizing}
-        progress={progress}
-        open={setupOpen}
-        onToggle={() => setSetupOpen((o) => !o)}
-        onChange={setRequest}
-        onRun={run}
-        onOptimize={optimize}
+    <div className="shell">
+      <Sidebar
+        page={page}
+        sections={NOTES_SECTIONS}
+        activeSection={activeSection}
+        status={status}
+        onPage={(p) => {
+          setPage(p);
+          if (p === "notes" && !pendingSection) setPendingSection(NOTES_SECTIONS[0].id);
+        }}
+        onSection={(id) => {
+          setPage("notes");
+          setPendingSection(id);
+        }}
       />
+      <div className="content">
+        {page === "simulation" ? (
+          <>
+            <SetupPanel
+              request={request}
+              running={running}
+              optimizing={optimizing}
+              progress={progress}
+              open={setupOpen}
+              onToggle={() => setSetupOpen((o) => !o)}
+              onChange={setRequest}
+              onRun={run}
+              onOptimize={optimize}
+            />
 
-      {error && <div className="error-banner">Request failed: {error}</div>}
+            {error && <div className="error-banner">失敗しました: {error}</div>}
 
-      {optimization && <OptimizationCard result={optimization} onClose={() => setOptimization(null)} />}
+            {optimization && <OptimizationCard result={optimization} onClose={() => setOptimization(null)} />}
 
-      <Tabs tabs={TABS} active={tab} onChange={setTab} />
-
-      {tab === "Notes" ? (
-        <main>
-          <Notes result={result} />
-        </main>
-      ) : result && metrics ? (
-        <main className={running ? "stale" : ""}>
-          <ControllerView
-            result={result}
-            name={tab as ControllerName}
-            metrics={metrics}
-            domain={domain}
-            playback={playback}
-            hovered={hovered}
-            selected={selected}
-            onHover={setHovered}
-            onSelect={setSelected}
-          />
-        </main>
-      ) : (
-        <div className="placeholder">
-          {running || optimizing
-            ? `${progress?.stage ?? (running ? "Running the simulation" : "Searching controller parameters")} … ${Math.round((progress?.fraction ?? 0) * 100)} %`
-            : "Set up the board and the reference trajectory, then press Run simulation."}
-        </div>
-      )}
+            {result && metrics ? (
+              <main className={running ? "stale" : ""}>
+                <div className="view-switch" role="tablist" aria-label="制御器">
+                  {CONTROLLERS.map((name) => (
+                    <button key={name} type="button" role="tab" aria-selected={controller === name} className={controller === name ? "active" : ""} onClick={() => setController(name)}>
+                      {name} の結果
+                    </button>
+                  ))}
+                </div>
+                <ControllerView
+                  result={result}
+                  name={controller}
+                  metrics={metrics}
+                  domain={domain}
+                  playback={playback}
+                  hovered={hovered}
+                  selected={selected}
+                  onHover={setHovered}
+                  onSelect={setSelected}
+                />
+              </main>
+            ) : (
+              <div className="placeholder">
+                {busy
+                  ? `${progress?.stage ?? (running ? "計算中" : "パラメータを探索中")} … ${Math.round((progress?.fraction ?? 0) * 100)} %`
+                  : "基板と参照軌道を決めて、「シミュレーションを実行」を押すと、ここに結果が出る。"}
+              </div>
+            )}
+          </>
+        ) : (
+          <main>
+            <Notes result={result} />
+          </main>
+        )}
+      </div>
     </div>
   );
 }

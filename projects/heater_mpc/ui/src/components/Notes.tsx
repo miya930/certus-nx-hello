@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import type { SimulationResult } from "../api";
 import { seriesStyle } from "../series";
 import { KalmanDiagram, MpcCycleDiagram, PidLoopDiagram, RecedingHorizonDiagram } from "./diagrams";
+import { KalmanPlayground } from "./KalmanPlayground";
+import { MpcPlayground } from "./MpcPlayground";
+import { PidPlayground } from "./PidPlayground";
 import { ModelValues } from "./ModelValues";
 import { Tex } from "./Tex";
 
@@ -49,6 +52,16 @@ function WithResult({ result, children }: { result: SimulationResult | null; chi
   return <div className="values">{children(result)}</div>;
 }
 
+export const NOTES_SECTIONS = [
+  { id: "notes-overview", title: "1. シミュレータの構成" },
+  { id: "notes-plant", title: "2. プラントモデル" },
+  { id: "notes-model-values", title: "2b. 状態空間モデルの値" },
+  { id: "notes-reference", title: "3. 参照軌道" },
+  { id: "notes-pid", title: "4. PID 制御" },
+  { id: "notes-mpc", title: "5. モデル予測制御 (MPC)" },
+  { id: "notes-kalman", title: "6. カルマンフィルタの計算例" },
+];
+
 export function Notes({ result }: Props) {
   const heaters = result ? result.rows * result.cols : null;
   const mpc = result?.controllers.MPC.info;
@@ -56,7 +69,7 @@ export function Notes({ result }: Props) {
 
   return (
     <article className="notes">
-      <section className="card">
+      <section className="card" id="notes-overview">
         <h2>1. シミュレータの構成</h2>
         <p>FR4 の基板に、チップ抵抗のヒーターとサーミスタを格子に並べる。2 層の銅箔が各層の一部を覆うとし、厚さと銅箔の割合は Setup で決める。</p>
         <p>実際の基板の役は 1 mm 格子の熱モデルが担い、PID 制御と MPC はサーミスタの温度だけを見てヒーターの電力を決める。</p>
@@ -72,7 +85,7 @@ export function Notes({ result }: Props) {
         </WithResult>
       </section>
 
-      <section className="card">
+      <section className="card" id="notes-plant">
         <h2>2. プラントモデル</h2>
         <h3>熱方程式</h3>
         <p>薄い板の面内の熱伝導と、両面からの放熱を考える。</p>
@@ -131,7 +144,7 @@ export function Notes({ result }: Props) {
         <WithResult result={result}>{(r) => <MatrixTable values={r.plant.steadyGain} digits={1} unit="K/W" />}</WithResult>
       </section>
 
-      <section className="card">
+      <section className="card" id="notes-model-values">
         <h2>2b. 状態空間モデルの値</h2>
         <p>
           1 mm 格子のモデルは状態が多く表示には大きすぎるため、同じ構造で MPC が予測に使う 5 mm 格子のモデルの <Tex math="A" />、<Tex math="B" />、
@@ -150,7 +163,7 @@ export function Notes({ result }: Props) {
         </WithResult>
       </section>
 
-      <section className="card">
+      <section className="card" id="notes-reference">
         <h2>3. 参照軌道</h2>
         <p>目標温度は段階ごとに与え、各段階の開始時刻に切り替える。</p>
         <p>
@@ -203,7 +216,7 @@ export function Notes({ result }: Props) {
         </WithResult>
       </section>
 
-      <section className="card">
+      <section className="card" id="notes-pid">
         <h2>4. PID 制御</h2>
         <h3>教科書的な解説</h3>
         <p>PID 制御は、目標値と測定値の偏差 <Tex math="e = r - y" /> から操作量を決める。</p>
@@ -314,9 +327,16 @@ export function Notes({ result }: Props) {
         <h3>この構成の限界</h3>
         <p>各ループは定常ゲイン行列の対角成分だけを前提にしており、隣のヒーターの熱は外乱として後から打ち消すしかない。</p>
         <p>そのため、複数の目標値を同時に変えると、互いの熱で行き過ぎたり、落ち着くまで時間がかかったりする。</p>
+
+        <h3>デモ: ゲインを動かして応答を見る</h3>
+        <p>
+          サーバーを使わず、ブラウザの中で 1 次元の小さな模型を計算する。15 個の格子を 5 mm 間隔で並べ、25 mm 間隔の 3 個のヒーターと、その隣の格子のサーミスタを置いた基板で、
+          目標は全体 40 °C、200 s で中央だけ 50 °C、400 s で全体 45 °C に変わる。スライダーを動かすと 600 s 分を計算し直す。
+        </p>
+        <PidPlayground />
       </section>
 
-      <section className="card">
+      <section className="card" id="notes-mpc">
         <h2>5. モデル予測制御 (MPC)</h2>
         <h3>教科書的な解説</h3>
         <p>MPC は、制御周期ごとに次の手順を繰り返す。</p>
@@ -497,6 +517,13 @@ export function Notes({ result }: Props) {
           温度の変化率そのものを不等式制約として課す方法もあるが、上下限以外の制約を扱う二次計画法の解法が必要になるため、ここでは参照軌道で表している。
         </p>
 
+        <h3>デモ: MPC の設定を動かして PID と比べる</h3>
+        <p>
+          PID のデモと同じ 1 次元の模型で、MPC の Ts、Np、Nc、λ を動かす。予測モデルには実際の基板とずれた熱コンダクタンスも与えられ、
+          カルマンフィルタの外乱の推定がそのずれをどう吸収するかも見える。
+        </p>
+        <MpcPlayground />
+
         <h3>制御周期の選び方</h3>
         <p>
           制御周期は、追従させたい最も速い応答の時定数の 1/10 から 1/20 が目安である。
@@ -514,6 +541,49 @@ export function Notes({ result }: Props) {
             今の基板の一次遅れの時定数は {pid.fopdt.tau.toFixed(0)} s、むだ時間は {pid.fopdt.delay.toFixed(0)} s である。
           </p>
         )}
+      </section>
+
+      <section className="card" id="notes-kalman">
+        <h2>6. カルマンフィルタの計算例</h2>
+        <p>
+          5 節では役割を説明した。ここでは、同じ 1 次元の模型で、フィルタが毎周期に実際にどんな数値を作っているかを追う。
+          ヒーターには決まった電力を入れ、制御はせずに推定だけを行う。
+        </p>
+        <h3>用意しておくもの</h3>
+        <p>
+          状態 <Tex math="x" /> (15 格子の温度上昇) と出力外乱 <Tex math="d" /> (3 個) をまとめた <Tex math={String.raw`\xi = [x^\top \ d^\top]^\top`} /> について、
+          1 ステップ進める行列 <Tex math={String.raw`A_\xi`} />、電力の効果 <Tex math={String.raw`B_\xi`} />、測定を取り出す <Tex math={String.raw`C_\xi`} /> を作る。
+        </p>
+        <Tex
+          block
+          math={String.raw`A_\xi = \begin{bmatrix} A & 0 \\ 0 & I \end{bmatrix}, \quad B_\xi = \begin{bmatrix} B \\ 0 \end{bmatrix}, \quad C_\xi = \begin{bmatrix} C & I \end{bmatrix}`}
+        />
+        <p>
+          ゲイン <Tex math="L" /> は、予測誤差の共分散 <Tex math="P" /> についての離散リッカチ方程式を、変化がなくなるまで繰り返して求める。
+          これは設定が決まれば一度だけ行う計算で、制御中は <Tex math="L" /> を定数として使う。
+        </p>
+        <Tex
+          block
+          math={String.raw`P \leftarrow A_\xi \left( P - P C_\xi^\top (C_\xi P C_\xi^\top + R)^{-1} C_\xi P \right) A_\xi^\top + Q, \qquad L = P C_\xi^\top (C_\xi P C_\xi^\top + R)^{-1}`}
+        />
+        <p>
+          <Tex math="Q" /> はモデルがどれだけ信用できないか、<Tex math="R" /> は測定がどれだけ信用できないかを表す分散である。
+          <Tex math="Q" /> を大きくすると <Tex math="L" /> が大きくなって測定寄りになり、<Tex math="R" /> を大きくすると <Tex math="L" /> が小さくなってモデル寄りになる。
+        </p>
+        <h3>毎周期の計算</h3>
+        <Tex
+          block
+          math={String.raw`\begin{aligned} \hat\xi_{k|k-1} &= A_\xi \hat\xi_{k-1} + B_\xi u_{k-1} & \text{(予測)} \\ \hat{y} &= C_\xi \hat\xi_{k|k-1} & \text{(期待される測定)} \\ \hat\xi_k &= \hat\xi_{k|k-1} + L \left( y_k - \hat{y} \right) & \text{(更新)} \end{aligned}`}
+        />
+        <p>
+          3 つの測定の差は、<Tex math="L" /> の列を通じて 18 個全ての状態に配られる。測っていない格子の推定は、この配分と、隣の格子から <Tex math="A" /> を通じて伝わる情報だけで決まる。
+        </p>
+        <h3>デモ: 数値を追う</h3>
+        <p>
+          雑音やモデルのずれ、<Tex math="Q" /> と <Tex math="R" /> を動かし、時刻のスライダーで 1 周期の予測、測定、差、補正、更新の値を見る。
+          「出力外乱 d の状態を持つ」を外すと、モデルのずれが定常偏差として残ることが分かる。
+        </p>
+        <KalmanPlayground />
       </section>
     </article>
   );

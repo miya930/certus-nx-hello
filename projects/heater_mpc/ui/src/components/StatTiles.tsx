@@ -7,10 +7,10 @@ interface Props {
 }
 
 const TILES: { key: keyof ControllerMetrics; label: string; unit: string; digits: number }[] = [
-  { key: "meanAbsoluteError", label: "Mean |SV − PV|", unit: "K", digits: 2 },
-  { key: "worstSensorError", label: "Worst sensor |SV − PV|", unit: "K", digits: 2 },
-  { key: "energyWh", label: "Heater energy", unit: "Wh", digits: 2 },
-  { key: "peakTemperature", label: "Peak board temperature", unit: "°C", digits: 1 },
+  { key: "meanAbsoluteError", label: "平均 |SV − PV|", unit: "K", digits: 2 },
+  { key: "worstSensorError", label: "最も悪いセンサーの |SV − PV|", unit: "K", digits: 2 },
+  { key: "energyWh", label: "ヒーターの電力量", unit: "Wh", digits: 2 },
+  { key: "peakTemperature", label: "基板の最高温度", unit: "°C", digits: 1 },
 ];
 
 export function StatTiles({ name, metrics }: Props) {

@@ -43,7 +43,7 @@ export function PhaseEditor({ heaters, duration, phases, preset, onPreset, onCha
     <div className="phase-editor">
       <div className="phase-toolbar">
         <label className="inline-field">
-          Preset
+          プリセット
           <select value={preset} onChange={(event) => onPreset(event.target.value as PresetName)}>
             {PRESETS.map((p) => (
               <option key={p.name} value={p.name}>
@@ -54,15 +54,15 @@ export function PhaseEditor({ heaters, duration, phases, preset, onPreset, onCha
         </label>
         <span className="muted preset-description">{PRESETS.find((p) => p.name === preset)?.description}</span>
         <button type="button" className="ghost-button" onClick={add} disabled={phases.length >= MAX_PHASES}>
-          + Add phase
+          + 段階を追加
         </button>
       </div>
       <div className="table-scroll">
         <table className="phase-table">
           <thead>
             <tr>
-              <th>Phase</th>
-              <th>Start [s]</th>
+              <th>段階</th>
+              <th>開始 [s]</th>
               {Array.from({ length: heaters }, (_, i) => (
                 <th key={i}>
                   <LineKey color={seriesStyle(i).color} /> {seriesStyle(i).label}
