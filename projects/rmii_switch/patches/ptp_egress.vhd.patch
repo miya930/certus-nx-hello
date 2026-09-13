@@ -1,0 +1,14 @@
+--- a/src/vhdl/common/ptp_egress.vhd
++++ b/src/vhdl/common/ptp_egress.vhd
+@@ -223,7 +223,10 @@
+         variable bmod : natural := bidx mod IO_BYTES;
+     begin
+         if (strm_byte_present(IO_BYTES, bidx, in_wcount)) then
+-            mod_data(8*(IO_BYTES-bmod)-1 downto 8*(IO_BYTES-bmod-1)) <= bval;
++            -- GHDL の合成は範囲が変わるスライスへの代入を扱えないため、1 ビットずつ代入する。
++            for i in bval'range loop
++                mod_data(8*(IO_BYTES-bmod-1) + i) <= bval(i);
++            end loop;
+         end if;
+     end procedure;
+ begin
