@@ -1,6 +1,4 @@
----
-title: SatCat5 Ethernet スイッチ
----
+# SatCat5 Ethernet スイッチ
 
 LFD2NX-40 に SatCat5 のスイッチを実装し、RMII の PHY をつなぐ Ethernet スイッチとして使う。
 VLAN と PTP を有効にし、どの RMII ポートからでも Ethernet フレームで設定を変えられる。

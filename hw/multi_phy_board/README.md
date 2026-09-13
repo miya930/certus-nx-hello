@@ -1,6 +1,4 @@
----
-title: 3 ポート Ethernet PHY 基板
----
+# 3 ポート Ethernet PHY 基板
 
 Certus-NX Versa Evaluation Board の PMOD Header に挿し、100BASE-TX の Ethernet ポートを 3 つ追加する基板である。
 各ポートは、[SatCat5 Ethernet スイッチ](../../projects/rmii_switch/README.md) の RMII ポートにつなぐ。
