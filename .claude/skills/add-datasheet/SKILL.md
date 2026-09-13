@@ -5,8 +5,9 @@ description: データシートや仕様書の PDF を Markdown に変換して 
 
 # データシートの追加
 
-PDF はリポジトリに保存せず、変換した Markdown だけを `datasheets/` に置いてコミットする。
-`*.pdf` は `.gitignore` で除外している。
+データシートはメーカーの資料で、再配布にあたるため、PDF も変換した Markdown もコミットしない。
+変換した Markdown は `datasheets/` に置き、手元で参照する。
+PDF と Markdown は、`.gitignore` で除外している。
 
 ## 手順
 
@@ -36,7 +37,7 @@ PDF はリポジトリに保存せず、変換した Markdown だけを `datashe
 
    同じ文書番号で古いリビジョンの Markdown があれば、ユーザーに確認してから削除する。
 
-5. Markdown をコミットする。
+5. PDF を残す。
 
    PDF は変換後もユーザーの手元に残し、削除するかどうかはユーザーに任せる。
 

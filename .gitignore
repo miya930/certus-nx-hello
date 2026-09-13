@@ -8,5 +8,6 @@ __pycache__/
 # FPGA ビルド生成物
 build/
 
-# データシートの PDF はコミットしない (Markdown だけを datasheets/ に置く)
+# データシートはメーカーの資料で、再配布にあたるため、PDF も変換した Markdown もコミットしない
 *.pdf
+datasheets/*.md

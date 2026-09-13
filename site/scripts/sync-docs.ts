@@ -1,6 +1,5 @@
-// 公開する設計情報を、リポジトリの各所から src/content/docs に集める。
+// 設計情報を、リポジトリの各所から src/content/docs に集める。
 // ドキュメントは書いた場所に置いたまま GitHub でも読めるようにし、サイト用のコピーはビルドのたびに作り直す。
-// datasheets/ はメーカーの資料を変換したものなので、公開しない。
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, posix, relative, sep } from 'node:path';
@@ -34,7 +33,7 @@ function route(rel: string): string {
 }
 
 // GitHub で読むための相対リンクを、サイトの URL に書き換える。
-// 公開しないファイルへのリンクは、GitHub のファイルを指すようにする。
+// サイトに集めないファイルへのリンクは、GitHub のファイルを指すようにする。
 function rewriteLinks(markdown: string, rel: string): string {
   return markdown.replace(/\]\(([^)\s#]+)(#[^)\s]*)?\)/g, (link, path: string, hash = '') => {
     if (/^[a-z]+:|^\//.test(path) || IMAGE_EXTS.has(extname(path))) {

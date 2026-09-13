@@ -9,10 +9,7 @@ const projects = readdirSync(projectsDir)
   .filter((name) => existsSync(new URL(`${name}/README.md`, projectsDir)))
   .sort();
 
-// GitHub Pages ではリポジトリ名のパスの下に公開される。
 export default defineConfig({
-  site: 'https://miya930.github.io',
-  base: '/certus-nx-hello',
   integrations: [
     starlight({
       title: 'certus-nx-hello',
