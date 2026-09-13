@@ -1,5 +1,5 @@
 ---
-title: 3 ポート RMII PHY 基板
+title: 3 ポート Ethernet PHY 基板
 ---
 
 Certus-NX Versa Evaluation Board の PMOD Header に挿し、100BASE-TX の Ethernet ポートを 3 つ追加する基板である。
@@ -8,15 +8,16 @@ Certus-NX Versa Evaluation Board の PMOD Header に挿し、100BASE-TX の Ethe
 
 ## 参照文書
 
-| 文書 | 場所 |
+| 文書 | 文書番号 |
 |---|---|
-| ボードのデータシート | `datasheets/FPGA-EB-02032-1-2-Certus-NX-Versa-Evaluation-Board.md` |
-| FPGA のデータシート | `datasheets/FPGA-DS-02078-2-5-Certus-NX-Family.md` |
-| LAN8742A のデータシート | `datasheets/DS_LAN8742_00001989A.md` |
-| LAN8742A の Schematic Checklist | `datasheets/LAN8742A-QFN-Rev-A-Schematic-Checklist.md` |
-| HR911105A のデータシート | LCSC の C12074 のページ |
+| [ボードのユーザーガイド](https://www.latticesemi.com/view_document?document_id=53254) | FPGA-EB-02032-1.2 |
+| [FPGA のデータシート](https://www.latticesemi.com/view_document?document_id=52890) | FPGA-DS-02078-2.5 |
+| [LAN8742A のデータシート](https://ww1.microchip.com/downloads/en/DeviceDoc/DS_LAN8742_00001989A.pdf) | DS00001989A |
+| [LAN8742A の Schematic Checklist](https://ww1.microchip.com/downloads/en/DeviceDoc/LAN8742A%20QFN%20Rev%20A%20Schematic%20Checklist.pdf) | SC471240 Rev A |
+| [HR911105A の部品ページ](https://www.lcsc.com/product-detail/C12074.html) | LCSC C12074 |
 
-HR911105A のデータシートは、PDF から Markdown に変換できなかったため、LCSC のページから取得して見る。
+- Lattice の文書のリンクは最新の版を開くため、文書番号の版と違うときは変更点を確かめる。
+- HR911105A のデータシートは、LCSC の部品ページから開く。
 
 ## 主な仕様
 
@@ -77,8 +78,8 @@ PMOD Header の各ピンの信号と、PHY 基板の中のつながりを次の�
 | J6 | ポート 0 と 1 の MDIO、双方向 | MDC、FPGA から PHY |
 | J8 | ポート 2 の MDIO、双方向 | nRST、FPGA から PHY |
 
-- 各ピンにつながる FPGA のボールは、ボードのデータシートの PMOD Header の表を見る。
-- GND と VCC のピンは、ボードのデータシートの回路図で J5、J6、J8 のシンボルを見る。
+- 各ピンにつながる FPGA のボールは、ボードのユーザーガイドの PMOD Header の表を見る。
+- GND と VCC のピンは、ボードのユーザーガイドの回路図で J5、J6、J8 のシンボルを見る。
 
 ### REF_CLK
 
@@ -142,7 +143,7 @@ LAN8742A はストラップで設定する。
 
 ### 電流
 
-- VCC_3V3 が出力できる電流は、ボードのデータシートの回路図の Power Regulators の図を見る。
+- VCC_3V3 が出力できる電流は、ボードのユーザーガイドの回路図の Power Regulators の図を見る。
 - LAN8742A の消費電流は、LAN8742A のデータシートの Power Consumption の節を見る。
 - VCC_3V3 はボードの他の回路にも使われている。
   PHY 基板をつなぐ前に、J42 で VCC_3V3 の電流を測り、余裕があることを確認する。
