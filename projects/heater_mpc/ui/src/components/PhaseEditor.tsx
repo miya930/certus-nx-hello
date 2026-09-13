@@ -14,7 +14,8 @@ interface Props {
 
 const MAX_PHASES = 8;
 const SETPOINT_MIN = 25;
-const SETPOINT_MAX = 150;
+// 基板上の素子の温度の上限に合わせる。
+const SETPOINT_MAX = 60;
 const NEW_PHASE_GAP = 300;
 
 export function PhaseEditor({ heaters, duration, phases, preset, onPreset, onChange }: Props) {

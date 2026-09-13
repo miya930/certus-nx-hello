@@ -5,8 +5,8 @@ use heapless::String;
 
 use crate::model::NU;
 
-/// 受け付ける目標温度 [°C]。ヒーターは冷やせないので下限は設けず、上限は基板を傷めない温度にする。
-pub const SETPOINT_RANGE_C: RangeInclusive<f32> = 0.0..=90.0;
+/// 受け付ける目標温度 [°C]。ヒーターは冷やせないので下限は設けず、上限は基板上の素子の温度の上限に合わせる。
+pub const SETPOINT_RANGE_C: RangeInclusive<f32> = 0.0..=60.0;
 
 /// 全ての値が最も長い書式になっても 1 行が収まる大きさ。
 pub const TELEMETRY_CAPACITY: usize = 512;
@@ -115,6 +115,7 @@ mod tests {
     #[test]
     fn parses_common_and_individual_setpoints() {
         assert_eq!(parse("setpoint 40"), Some(Command::Setpoint([40.0; NU])));
+        assert_eq!(parse("setpoint 60"), Some(Command::Setpoint([60.0; NU])));
         let individual = parse("setpoint 40 41 42 43 44 45 46 47 48");
         assert_eq!(individual, Some(Command::Setpoint([40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0])));
     }
@@ -124,7 +125,7 @@ mod tests {
         assert_eq!(parse("setpoint"), None);
         assert_eq!(parse("setpoint 40 41"), None);
         assert_eq!(parse("setpoint 40 40 40 40 40 40 40 40 40 40"), None);
-        assert_eq!(parse("setpoint 95"), None);
+        assert_eq!(parse("setpoint 60.5"), None);
         assert_eq!(parse("setpoint -1"), None);
         assert_eq!(parse("setpoint NaN"), None);
         assert_eq!(parse("setpoint hot"), None);

@@ -36,7 +36,8 @@ DEFAULT_PORT = 8765
 # 実際の基板の役のモデルが 1 mm 格子なので、基板の辺の長さで計算時間を抑える。
 MAX_BOARD_MM = 150.0
 MAX_PHASES = 8
-MAX_SETPOINT = 150.0
+# 基板上の素子の温度の上限に合わせる。
+MAX_SETPOINT = 60.0
 
 # 結果を取りに来ないジョブを捨てるまでの時間。
 JOB_TTL = 600.0  # s
