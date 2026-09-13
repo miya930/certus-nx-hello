@@ -1,0 +1,12 @@
+# Windows からコピーした際に付く代替データストリーム
+*:Zone.Identifier
+
+# Python
+__pycache__/
+.venv/
+
+# FPGA ビルド生成物
+build/
+
+# データシートの PDF はコミットしない (Markdown だけを datasheets/ に置く)
+*.pdf
