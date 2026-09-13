@@ -1066,3 +1066,123 @@ main.stale {
   border-left: 3px solid var(--grid);
   font-size: 12px;
 }
+
+/* Diagrams */
+
+.diagram {
+  margin: 14px 0;
+  color: var(--text-primary);
+}
+
+.diagram svg {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+}
+
+.diagram figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.diagram text {
+  fill: currentColor;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.diagram .title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.diagram .small {
+  font-size: 11px;
+}
+
+.diagram .muted {
+  fill: var(--text-muted);
+}
+
+.diagram .accent-text {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.diagram .box {
+  fill: var(--surface-2);
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.diagram .box.accent {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+}
+
+.diagram .box.dashed {
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+.diagram .wire {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.diagram .wire.thin {
+  stroke-width: 1;
+}
+
+.diagram .wire.dashed {
+  stroke-dasharray: 5 4;
+}
+
+.diagram .wire.accent {
+  stroke: var(--accent);
+  stroke-width: 2.2;
+}
+
+.diagram .muted-stroke {
+  stroke: var(--text-muted);
+}
+
+.diagram .ink-fill {
+  fill: currentColor;
+}
+
+.diagram .accent-fill {
+  fill: var(--accent);
+}
+
+.diagram .cell {
+  fill: var(--surface-1);
+  stroke: var(--grid);
+  stroke-width: 0.8;
+}
+
+.diagram .cell.accent-fill {
+  fill: var(--accent);
+}
+
+.diagram .dot {
+  fill: currentColor;
+}
+
+.diagram .bar {
+  fill: var(--surface-2);
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.diagram .bar.hold {
+  stroke-dasharray: 4 3;
+}
+
+.diagram .past {
+  fill: var(--surface-2);
+  opacity: 0.6;
+}

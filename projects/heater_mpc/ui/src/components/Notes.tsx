@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { SimulationResult } from "../api";
 import { seriesStyle } from "../series";
+import { KalmanDiagram, MpcCycleDiagram, PidLoopDiagram, RecedingHorizonDiagram } from "./diagrams";
 import { ModelValues } from "./ModelValues";
 import { Tex } from "./Tex";
 
@@ -214,7 +215,12 @@ export function Notes({ result }: Props) {
         <Tex block math={String.raw`C(s) = K_p \left( 1 + \frac{1}{T_i s} + \frac{T_d s}{1 + (T_d / N) s} \right)`} />
 
         <h3>このシミュレーションでの実装</h3>
+        <PidLoopDiagram />
         <p>各ヒーターを、自分のサーミスタだけを見る独立したループで制御する。</p>
+        <p>
+          図の上から入る隣のヒーターの熱は、このループには見えない。PV が上がって初めて偏差として現れ、積分項が時間をかけて電力を下げることで打ち消す。
+          複数のループが同時に動くと、互いの熱を外乱として打ち消し合うため、落ち着くまでに時間がかかる。
+        </p>
         <p>微分は偏差ではなく測定値にかけ、目標値を変えた瞬間に操作量が跳ねないようにした。</p>
         <p>
           操作量は <Tex math={String.raw`0 \le u \le u_\mathrm{max}`} /> に制限し、飽和している向きには積分を止めてワインドアップを防ぐ。
@@ -322,7 +328,12 @@ export function Notes({ result }: Props) {
           <li>求めた操作量のうち最初の 1 ステップ分だけを加え、次の周期で予測をやり直す。</li>
         </ol>
         <p>予測する区間が周期ごとに先へずれていくため、この考え方を移動ホライズン (receding horizon) と呼ぶ。</p>
+        <RecedingHorizonDiagram />
         <p>多入力多出力の干渉と、操作量の上下限を、最適化の中で直接扱えるのが特長である。</p>
+        <p>
+          PID との違いは 2 つある。1 つは、全ヒーターの電力を 1 つの最適化でまとめて決めるので、隣のヒーターの熱が届くことを前もって知っていることである。
+          もう 1 つは、参照軌道の先を見ているので、目標が変わる前に電力を動かし始められることである。
+        </p>
 
         <h3>予測に使う状態空間モデル</h3>
         <p>
@@ -335,9 +346,42 @@ export function Notes({ result }: Props) {
           math={String.raw`\begin{aligned} x_{k+1} &= A x_k + B u_k, & x &\in \mathbb{R}^{n_x}, \ u \in \mathbb{R}^{n_u} \\ d_{k+1} &= d_k, & d &\in \mathbb{R}^{n_y} \\ y_k &= C x_k + d_k, & y &\in \mathbb{R}^{n_y} \end{aligned}`}
         />
 
-        <h3>状態推定</h3>
+        <h3>状態推定: カルマンフィルタがあると何が嬉しいか</h3>
+        <p>MPC の予測は、今の基板全体の温度 <Tex math="x" /> から始める。しかし測れるのはサーミスタの点だけで、残りの格子の温度は分からない。</p>
+        <p>カルマンフィルタは、この測定と、前の周期に加えた電力、そしてモデルから、全ての格子の温度を推定する。これが 1 つ目の役割である。</p>
         <p>
-          状態と外乱をまとめた <Tex math={String.raw`\xi = [x^\top \ d^\top]^\top`} /> をカルマンフィルタで推定する。
+          2 つ目の役割は、モデルのずれを毎周期取り込むことである。予測モデルは 5 mm 格子で実際の基板より粗く、ヒーターの位置も丸めている。
+          モデルだけで予測を続けるとずれが積もるが、測定との差の一部を毎周期推定に足すと、推定は現実から離れない。
+        </p>
+        <p>
+          3 つ目の役割は、定常偏差をなくすことである。出力外乱 <Tex math="d" /> は「モデルで説明できない温度差」をためる状態で、PID の積分項に相当する。
+          目標ベクトルを作るときに <Tex math={String.raw`\hat{d}`} /> を引くので、モデルが少し違っていても最終的な温度は目標に一致する。
+        </p>
+        {result ? (
+          <KalmanDiagram
+            rows={result.controllers.MPC.model.rows}
+            cols={result.controllers.MPC.model.cols}
+            sensorCells={result.controllers.MPC.model.sensorCells}
+          />
+        ) : (
+          <KalmanDiagram rows={12} cols={12} sensorCells={[38, 42, 46, 86, 90, 94, 134, 138, 142]} />
+        )}
+        <p>計算していることは 2 段階で、どちらも行列とベクトルの積である。</p>
+        <ol>
+          <li>
+            予測。前の周期の推定を <Tex math="A" /> で 1 ステップ進め、前の周期に加えた電力の効果 <Tex math="B u_{k-1}" /> を足す。外乱 <Tex math="d" /> はそのまま保つ。
+          </li>
+          <li>
+            更新。予測から期待される測定 <Tex math={String.raw`\hat{y} = C \hat{x} + \hat{d}`} /> と実際の測定 <Tex math="y_k" /> の差にゲイン <Tex math="L" /> をかけて、推定に足す。
+          </li>
+        </ol>
+        <p>
+          ゲイン <Tex math="L" /> は「モデルと測定のどちらをどれだけ信じるか」を決める重みで、モデルの雑音の分散 <Tex math="Q" /> と測定雑音の分散 <Tex math="R" /> から一度だけ計算する。
+          <Tex math="Q" /> を大きくすると測定寄りに、<Tex math="R" /> を大きくするとモデル寄りになる。
+          このシミュレーションでは外乱の分散 <Tex math="Q_d" /> を大きくして、ずれを外乱として素早く取り込むようにしている。
+        </p>
+        <p>
+          状態と外乱をまとめた <Tex math={String.raw`\xi = [x^\top \ d^\top]^\top`} /> について、式で書くと次のようになる。
         </p>
         <Tex
           block
@@ -384,8 +428,9 @@ export function Notes({ result }: Props) {
         </WithResult>
 
         <h3>各制御周期の演算</h3>
+        <MpcCycleDiagram />
         <p>
-          制御周期 <Tex math="T_s" /> ごとに、次の手順を順に行う。
+          制御周期 <Tex math="T_s" /> ごとに、図の左から右へ次の手順を順に行う。
           {mpc && heaters !== null && (
             <>
               {" "}
