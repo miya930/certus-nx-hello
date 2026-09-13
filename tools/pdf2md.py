@@ -33,20 +33,24 @@ BOILERPLATE_MIN_COUNT = 5
 BOILERPLATE_MIN_LEN = 40
 
 
-def strip_boilerplate(md: str) -> tuple[str, list[str]]:
-    lines = md.splitlines()
-
+def strip_boilerplate(pages: list[str]) -> tuple[str, list[str]]:
     def prose(line: str) -> str | None:
         body = line.removeprefix("> ").strip()
         if len(body) < BOILERPLATE_MIN_LEN or body.startswith(("|", "<!--", "#")):
             return None
         return body
 
-    counts = Counter(b for b in map(prose, lines) if b)
-    repeated = [b for b, n in counts.items() if n >= BOILERPLATE_MIN_COUNT]
+    per_page = [Counter(b for b in map(prose, page.splitlines()) if b) for page in pages]
+    counts = Counter(b for page_counts in per_page for b in page_counts.elements())
+    # 定型文は 1 ページに 1 回しか現れない。同じページで繰り返す段落はレジスタの説明などの本文なので残す
+    repeated = [
+        b
+        for b, n in counts.items()
+        if n >= BOILERPLATE_MIN_COUNT and all(page_counts[b] <= 1 for page_counts in per_page)
+    ]
 
     out = []
-    for line in lines:
+    for line in "".join(pages).splitlines():
         if prose(line):
             for b in repeated:
                 line = line.replace(b, "")
@@ -67,7 +71,8 @@ def convert(pdf: Path, out_dir: Path, images: bool) -> Path:
         img_dir.mkdir(exist_ok=True)
         kwargs.update(write_images=True, image_path=str(img_dir), image_format="png", dpi=150)
 
-    md, removed = strip_boilerplate(pymupdf4llm.to_markdown(str(pdf), **kwargs))
+    chunks = pymupdf4llm.to_markdown(str(pdf), page_chunks=True, **kwargs)
+    md, removed = strip_boilerplate([chunk["text"] for chunk in chunks])
     for b in removed:
         print(f"  removed boilerplate: {b[:80]}")
 
