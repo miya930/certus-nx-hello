@@ -1,0 +1,56 @@
+--- a/src/vhdl/common/port_rmii.vhd
++++ b/src/vhdl/common/port_rmii.vhd
+@@ -45,6 +45,7 @@
+     generic (
+     MODE_CLKOUT : boolean := true;      -- Enable clock output?
+     MODE_CLKDDR : boolean := true;      -- TX* change on falling edge?
++    RXDAT_DELAY : real := -1.0;         -- 受信データの入力遅延 (ns)。負の値のときは遅延素子を使わない。
+     VCONFIG     : vernier_config := VERNIER_DISABLED);
+     port (
+     -- External RMII interface.
+@@ -223,11 +224,42 @@
+ -- Input buffers don't use reset, to allow absorption into IOB.
+ -- Note: In CLKOUT mode, internal clock slightly precedes refclk signal.
+ --       In CLKIN mode, internal clock slightly lags refclk signal.
+-u_rxbuf : process(io_clk)
++gen_rxbuf : if RXDAT_DELAY < 0.0 generate
++    u_rxbuf : process(io_clk)
++    begin
++        if rising_edge(io_clk) then
++            io_rxd  <= rmii_rxd;
++            io_rxen <= rmii_rxen;
++        end if;
++    end process;
++end generate;
++
++-- PHY が受信データを保持する時間が入力レジスタのホールド時間より短い場合は、
++-- I/O の遅延素子を通してから I/O の入力レジスタで取り込む。
++gen_rxdly : if RXDAT_DELAY >= 0.0 generate
++    gen_rxd : for n in rmii_rxd'range generate
++        u_rxd : ddr_input
++            generic map(DELAY_NSEC => RXDAT_DELAY)
++            port map(
++            d_pin   => rmii_rxd(n),
++            clk     => io_clk,
++            q_re    => io_rxd(n),
++            q_fe    => open);
++    end generate;
++
++    u_rxen : ddr_input
++        generic map(DELAY_NSEC => RXDAT_DELAY)
++        port map(
++        d_pin   => rmii_rxen,
++        clk     => io_clk,
++        q_re    => io_rxen,
++        q_fe    => open);
++end generate;
++
++-- RXER は PHY から来ない構成でも定数をつなげられるよう、I/O の遅延素子を通さない。
++u_rxer : process(io_clk)
+ begin
+     if rising_edge(io_clk) then
+-        io_rxd  <= rmii_rxd;
+-        io_rxen <= rmii_rxen;
+         io_rxer <= rmii_rxer;
+     end if;
+ end process;
