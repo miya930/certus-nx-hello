@@ -1,7 +1,7 @@
 PORT_COUNT ?= 4
 
 DEVICE  := LFD2NX-40-8BG256C
-SATCAT5 := ../../external/satcat5/src/vhdl
+SATCAT5 := ../../third_party/satcat5/src/vhdl
 PATCHES := patches
 NEXUS   := nexus
 BUILD   := build/ports$(PORT_COUNT)
