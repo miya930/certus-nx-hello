@@ -2,14 +2,18 @@
   "name": "certus-nx-hello-site",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
-    "sync": "node scripts/sync-docs.mjs",
+    "sync": "node scripts/sync-docs.ts",
     "dev": "npm run sync && astro dev",
     "build": "npm run sync && astro build",
     "preview": "astro preview"
   },
   "dependencies": {
     "@astrojs/starlight": "0.42.0",
+    "@panzoom/panzoom": "4.6.2",
     "astro": "7.3.2",
     "sharp": "0.35.4"
   }
