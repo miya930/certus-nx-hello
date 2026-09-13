@@ -2,6 +2,11 @@
 
 rmii_switch の Ethernet ポートは、PMOD Header に挿す PHY 基板で用意する。
 
+PMOD Header の各ピンの信号と、PHY 基板の中のつながりを次の図に示す。
+図は `phy_board_interface.drawio.svg` で、draw.io で開いて編集できる。
+
+![PHY 基板のインターフェース](phy_board_interface.drawio.svg)
+
 ## 構成
 
 - 1 枚の基板に LAN8742A を 3 つ載せ、100BASE-TX のポートを 3 つ作る。
