@@ -23,17 +23,33 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+import pymupdf
 import pymupdf4llm
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DIR = REPO_ROOT / "datasheets"
 
-# 図だけのページではフッタ検出が効かず定型文が本文に残るため、この回数以上繰り返す段落を定型文とみなす
+# 図だけのページではフッタ検出が効かず定型文が本文に残るため、この回数以上繰り返す段落を定型文の候補とする。
+# 本文でも同じ説明文が繰り返されることがあるため、ページの上端か下端にある文字列と一致する候補だけを消す。
 BOILERPLATE_MIN_COUNT = 5
 BOILERPLATE_MIN_LEN = 40
+MARGIN_RATIO = 0.1
 
 
-def strip_boilerplate(pages: list[str]) -> tuple[str, list[str]]:
+def margin_texts(pdf: Path) -> list[str]:
+    texts = []
+    with pymupdf.open(pdf) as doc:
+        for page in doc:
+            height = page.rect.height
+            blocks = [
+                b[4] for b in page.get_text("blocks")
+                if b[3] < height * MARGIN_RATIO or b[1] > height * (1 - MARGIN_RATIO)
+            ]
+            texts.append(" ".join(" ".join(blocks).split()))
+    return texts
+
+
+def strip_boilerplate(pages: list[str], margins: list[str]) -> tuple[str, list[str]]:
     def prose(line: str) -> str | None:
         body = line.removeprefix("> ").strip()
         if len(body) < BOILERPLATE_MIN_LEN or body.startswith(("|", "<!--", "#")):
@@ -46,7 +62,9 @@ def strip_boilerplate(pages: list[str]) -> tuple[str, list[str]]:
     repeated = [
         b
         for b, n in counts.items()
-        if n >= BOILERPLATE_MIN_COUNT and all(page_counts[b] <= 1 for page_counts in per_page)
+        if n >= BOILERPLATE_MIN_COUNT
+        and all(page_counts[b] <= 1 for page_counts in per_page)
+        and any(" ".join(b.split()) in m for m in margins)
     ]
 
     out = []
@@ -72,7 +90,7 @@ def convert(pdf: Path, out_dir: Path, images: bool) -> Path:
         kwargs.update(write_images=True, image_path=str(img_dir), image_format="png", dpi=150)
 
     chunks = pymupdf4llm.to_markdown(str(pdf), page_chunks=True, **kwargs)
-    md, removed = strip_boilerplate([chunk["text"] for chunk in chunks])
+    md, removed = strip_boilerplate([chunk["text"] for chunk in chunks], margin_texts(pdf))
     for b in removed:
         print(f"  removed boilerplate: {b[:80]}")
 
