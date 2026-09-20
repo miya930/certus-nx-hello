@@ -23,6 +23,7 @@
   SatCat5 などの外部 HDL は、`third_party/` に git submodule として置く。
 - プロジェクトは `projects/<name>/` に置き、HDL、制約、パッチ、Makefile などのファイルは全てその中に置く。
   トップディレクトリに HDL 用のフォルダを作らない。
+- 外部 HDL を Nexus で使うための部品とパッチは、複数のプロジェクトで共有するため、`third_party/` の submodule の隣に置く。
 - 合成から配置配線までの手順は、プロジェクトの Makefile にまとめる。
 - デモで使う基板は `hw/<name>/` に置き、回路図、基板のデータ、仕様の README.md は全てその中に置く。
 - `tools/` のスクリプトは、`tools/<name>/` のフォルダに 1 つずつ置く。

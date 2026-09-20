@@ -1,0 +1,48 @@
+--- a/src/vhdl/common/port_rgmii.vhd
++++ b/src/vhdl/common/port_rgmii.vhd
+@@ -348,6 +348,7 @@
+     tx_ctrl     => tx_ctrl);    -- (Associated control)
+ 
+ -- Rate adaptation for outgoing clock and data.
++-- 剰余の演算は除算器になり、125 MHz に届かないため、比較と条件分岐で書き換えた。
+ p_tx : process(tx_clk)
+     variable clkdiv : integer range 0 to 99 := 0;
+ begin
+@@ -378,11 +379,15 @@
+                 tx_out_data <= tx_pre_data(7 downto 4) & tx_pre_data(7 downto 4);
+             end if;
+             -- Divide clock by 50x (SDR = 2 cycles per byte)
+-            tx_out_clkr <= bool2bit(clkdiv mod 50 < 25);
+-            tx_out_clkf <= bool2bit(clkdiv mod 50 < 25);
++            tx_out_clkr <= bool2bit(clkdiv < 25 or (50 <= clkdiv and clkdiv < 75));
++            tx_out_clkf <= bool2bit(clkdiv < 25 or (50 <= clkdiv and clkdiv < 75));
+             -- Assert clock-enable one cycle before wraparound.
+             tx_pre_cken <= bool2bit(clkdiv = 98);
+-            clkdiv      := (clkdiv + 1) mod 100;
++            if (clkdiv = 99) then
++                clkdiv  := 0;
++            else
++                clkdiv  := clkdiv + 1;
++            end if;
+         elsif (tx_rate100 = '1') then
+             -- 100 Mbps mode: Hold each nybble for 5 internal clock cycles.
+             if (clkdiv < 5) then
+@@ -391,11 +396,15 @@
+                 tx_out_data <= tx_pre_data(7 downto 4) & tx_pre_data(7 downto 4);
+             end if;
+             -- Divide clock by 5x (SDR = 2 cycles per byte)
+-            tx_out_clkr <= bool2bit(clkdiv mod 5 < 3);
+-            tx_out_clkf <= bool2bit(clkdiv mod 5 < 2);
++            tx_out_clkr <= bool2bit(clkdiv < 3 or (5 <= clkdiv and clkdiv < 8));
++            tx_out_clkf <= bool2bit(clkdiv < 2 or (5 <= clkdiv and clkdiv < 7));
+             -- Assert clock-enable one cycle before wraparound.
+             tx_pre_cken <= bool2bit(clkdiv = 8);
+-            clkdiv      := (clkdiv + 1) mod 10;
++            if (clkdiv = 9) then
++                clkdiv  := 0;
++            else
++                clkdiv  := clkdiv + 1;
++            end if;
+         else
+             -- 1000 Mbps mode: DDR @ 125 MHz clock (full rate)
+             tx_pre_cken <= '1';

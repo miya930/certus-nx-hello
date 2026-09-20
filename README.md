@@ -14,7 +14,7 @@ Lattice Radiant は使わず、オープンソースのツールだけで合成�
 |---|---|
 | `projects/` | デモごとのプロジェクトを置く。設計と実行方法は、各プロジェクトの README.md にまとめている。 |
 | `hw/` | デモで使う基板を置く。仕様は、各基板の README.md にまとめている。 |
-| `third_party/` | SatCat5 などの外部 HDL を git submodule として置く。 |
+| `third_party/` | SatCat5 などの外部 HDL を git submodule として置く。外部 HDL を Nexus で使うための層も、submodule の隣に置く。 |
 | `datasheets/` | ボード、FPGA、部品のデータシートを PDF から Markdown に変換して置く。再配布にあたるため、コミットしない。 |
 | `tools/` | データシートを変換するスクリプトを置く。uv で実行する。 |
 
