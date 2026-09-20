@@ -1,5 +1,5 @@
 [package]
-name = "ip_endpoint_firmware"
+name = "managed_switch_firmware"
 version = "0.1.0"
 edition = "2021"
 

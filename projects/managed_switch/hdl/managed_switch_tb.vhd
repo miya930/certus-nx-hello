@@ -1,10 +1,10 @@
 library ieee;
 use     ieee.std_logic_1164.all;
 
-entity ip_endpoint_tb is
-end ip_endpoint_tb;
+entity managed_switch_tb is
+end managed_switch_tb;
 
-architecture sim of ip_endpoint_tb is
+architecture sim of managed_switch_tb is
 
 constant PHY_CLK_HZ     : positive := 125_000_000;
 constant PHY_CLK_PERIOD : time := 1 sec / PHY_CLK_HZ;
@@ -45,7 +45,7 @@ signal test_done    : boolean := false;
 
 begin
 
-uut : entity work.ip_endpoint
+uut : entity work.managed_switch
     generic map(
     RESET_USEC      => RESET_USEC,
     STARTUP_USEC    => STARTUP_USEC)

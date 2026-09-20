@@ -30,26 +30,14 @@ fn write_reg(index: usize, value: u32) {
     unsafe { write_volatile((BASE + index * 4) as *mut u32, value) };
 }
 
-/// 送信した回数。TxToken は MailMap を借りられないため、ここで数える。
-pub static mut TX_COUNT: u32 = 0;
+/// 送信バッファへ書いた値と読み返した値が食い違った回数。
+pub static mut TX_MISMATCH: u32 = 0;
 
 pub struct MailMap {
     rx_buffer: [u8; BUFFER_BYTES],
     tx_buffer: [u8; BUFFER_BYTES],
     /// 受け取ったフレームの数。動作の確認に使う。
     pub rx_count: u32,
-    /// 最後に受け取ったフレームの長さと EtherType。中身の確認に使う。
-    pub rx_last_len: u32,
-    pub rx_last_etype: u32,
-    /// 最後に受け取ったフレームの宛先 MAC の上位 3 バイトと下位 3 バイト。
-    pub rx_last_dst_hi: u32,
-    pub rx_last_dst_lo: u32,
-    /// 最後に受け取った IPv4 のプロトコル番号と、送信元と宛先のアドレス。
-    pub rx_last_proto: u32,
-    pub rx_last_src_ip: u32,
-    pub rx_last_dst_ip: u32,
-    /// IP ヘッダのチェックサムの検算結果。正しければ 0xFFFF になる。
-    pub rx_last_ipsum: u32,
 }
 
 impl MailMap {
@@ -58,14 +46,6 @@ impl MailMap {
             rx_buffer: [0; BUFFER_BYTES],
             tx_buffer: [0; BUFFER_BYTES],
             rx_count: 0,
-            rx_last_len: 0,
-            rx_last_etype: 0,
-            rx_last_dst_hi: 0,
-            rx_last_dst_lo: 0,
-            rx_last_proto: 0,
-            rx_last_src_ip: 0,
-            rx_last_dst_ip: 0,
-            rx_last_ipsum: 0,
         }
     }
 
@@ -82,36 +62,6 @@ impl MailMap {
         }
         write_reg(REG_RX_CTRL, 0);
         self.rx_count = self.rx_count.wrapping_add(1);
-        self.rx_last_len = length as u32;
-        if length >= 14 {
-            self.rx_last_etype =
-                ((self.rx_buffer[12] as u32) << 8) | self.rx_buffer[13] as u32;
-            self.rx_last_dst_hi = ((self.rx_buffer[0] as u32) << 16)
-                | ((self.rx_buffer[1] as u32) << 8) | self.rx_buffer[2] as u32;
-            self.rx_last_dst_lo = ((self.rx_buffer[3] as u32) << 16)
-                | ((self.rx_buffer[4] as u32) << 8) | self.rx_buffer[5] as u32;
-        }
-        if length >= 34 && self.rx_last_etype == 0x0800 {
-            self.rx_last_proto = self.rx_buffer[23] as u32;
-            let word = |at: usize| {
-                ((self.rx_buffer[at] as u32) << 24)
-                    | ((self.rx_buffer[at + 1] as u32) << 16)
-                    | ((self.rx_buffer[at + 2] as u32) << 8)
-                    | self.rx_buffer[at + 3] as u32
-            };
-            self.rx_last_src_ip = word(26);
-            self.rx_last_dst_ip = word(30);
-            let header_len = ((self.rx_buffer[14] & 0x0F) as usize) * 4;
-            let mut sum: u32 = 0;
-            for at in (0..header_len).step_by(2) {
-                sum += ((self.rx_buffer[14 + at] as u32) << 8)
-                    | self.rx_buffer[14 + at + 1] as u32;
-            }
-            while sum >> 16 != 0 {
-                sum = (sum & 0xFFFF) + (sum >> 16);
-            }
-            self.rx_last_ipsum = sum;
-        }
     }
 
     fn transmit_busy(&self) -> bool {
@@ -172,6 +122,8 @@ pub struct TxToken<'a> {
 impl<'a> phy::TxToken for TxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
         let result = f(&mut self.buffer[..length]);
+        // 送信中はバッファへの書き込みが無視されるため、空くまで待つ。
+        while read_reg(REG_TX_CTRL) != 0 {}
         // TxToken は送信バッファだけを借りているため、ここでレジスタへ直接書き出す。
         for offset in (0..length).step_by(4) {
             let mut word = [0u8; 4];
@@ -179,8 +131,15 @@ impl<'a> phy::TxToken for TxToken<'a> {
             word[..remain].copy_from_slice(&self.buffer[offset..offset + remain]);
             write_reg(REG_TX_DATA + offset / 4, u32::from_le_bytes(word));
         }
+        for offset in (0..length).step_by(4) {
+            let mut word = [0u8; 4];
+            let remain = (length - offset).min(4);
+            word[..remain].copy_from_slice(&self.buffer[offset..offset + remain]);
+            if read_reg(REG_TX_DATA + offset / 4) != u32::from_le_bytes(word) {
+                unsafe { TX_MISMATCH = TX_MISMATCH.wrapping_add(1) };
+            }
+        }
         write_reg(REG_TX_CTRL, length as u32);
-        unsafe { TX_COUNT = TX_COUNT.wrapping_add(1) };
         result
     }
 }

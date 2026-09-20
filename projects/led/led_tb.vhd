@@ -2,10 +2,10 @@ library ieee;
 use     ieee.numeric_std.all;
 use     ieee.std_logic_1164.all;
 
-entity led_sequence_tb is
-end led_sequence_tb;
+entity led_tb is
+end led_tb;
 
-architecture sim of led_sequence_tb is
+architecture sim of led_tb is
 
 -- 値を 1 増やす間隔が 10 サイクルになるようにして、短い時間で確認する。
 constant CLK_HZ         : positive := 10_000;
@@ -28,7 +28,7 @@ signal test_done    : boolean := false;
 
 begin
 
-uut : entity work.led_sequence
+uut : entity work.led
     generic map(
     CLK_HZ      => CLK_HZ,
     STEP_MSEC   => STEP_MSEC)

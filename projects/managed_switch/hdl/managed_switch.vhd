@@ -6,7 +6,7 @@ use     work.switch_types.all;
 
 library neorv32;
 
-entity ip_endpoint is
+entity managed_switch is
     generic (
     IMEM_BYTES      : positive := 32*1024;
     DMEM_BYTES      : positive := 32*1024;
@@ -29,9 +29,9 @@ entity ip_endpoint is
     txd_uart        : in  std_logic;
     rxd_uart        : out std_logic;
     led             : out std_logic_vector(7 downto 0));
-end ip_endpoint;
+end managed_switch;
 
-architecture rtl of ip_endpoint is
+architecture rtl of managed_switch is
 
 -- RGMII の 1000 Mbps は、ボードの 125 MHz の発振器からそのまま作る。
 constant PHY_CLK_HZ     : positive := 125_000_000;
@@ -115,7 +115,6 @@ signal tx_data      : array_tx_s2m(PORT_TOTAL-1 downto 0);
 signal tx_ctrl      : array_tx_m2s(PORT_TOTAL-1 downto 0);
 
 signal gpio         : std_ulogic_vector(31 downto 0);
-signal port_state   : std_ulogic_vector(31 downto 0);
 signal xbus_adr     : std_ulogic_vector(31 downto 0);
 signal xbus_wdat    : std_ulogic_vector(31 downto 0);
 signal xbus_rdat    : std_logic_vector(31 downto 0);
@@ -234,14 +233,13 @@ u_cpu : entity neorv32.neorv32_top
     DMEM_EN          => true,
     DMEM_SIZE        => DMEM_BYTES,
     XBUS_EN          => true,
-    IO_GPIO_NUM      => gpio'length,
+    IO_GPIO_NUM      => led'length,
     IO_CLINT_EN      => true,
     IO_UART0_EN      => true)
     port map(
     clk_i       => system_25m_clk,
     rstn_i      => pushbutton3,
     gpio_o      => gpio,
-    gpio_i      => port_state,
     uart0_txd_o => rxd_uart,
     uart0_rxd_i => txd_uart,
     xbus_adr_o  => xbus_adr,
@@ -286,15 +284,6 @@ u_core : entity work.switch_core
     scrub_req_t     => '0',
     core_clk        => system_25m_clk,
     core_reset_p    => reset_p);
-
--- RGMII のポートが何を見ているかを CPU から読めるようにする。
--- rate はリンク速度が Mbps でそのまま入る。
-port_state(15 downto 0)  <= std_ulogic_vector(rx_data(PORT_PHY).rate);
-port_state(23 downto 16) <= std_ulogic_vector(rx_data(PORT_PHY).status);
-port_state(24) <= mdio_done;
-port_state(25) <= rx_data(PORT_PHY).reset_p;
-port_state(26) <= tx_ctrl(PORT_PHY).reset_p;
-port_state(31 downto 27) <= (others => '0');
 
 -- LED は、出力を 0 にすると点灯する。
 -- 最下位は MDIO の設定が終わったことを示し、残りは CPU が動かす。

@@ -1,14 +1,17 @@
-# IP アドレスを持つ Ethernet の端点
+# IP で管理できるスイッチングハブ
 
-LFD2NX-40 に SatCat5 のスイッチと NEORV32 の RISC-V コアを実装し、ボードに IP アドレスを持たせる。
-IP の処理は Rust の smoltcp が行い、PC から `ping` が通ることを目標にする。
+LFD2NX-40 に SatCat5 のスイッチを実装し、Ethernet のフレームを転送するスイッチングハブにする。
+スイッチには NEORV32 の RISC-V コアを内部ポートとしてつなぎ、ハブ自身に IP アドレスを持たせる。
+IP の処理は Rust の smoltcp が行い、PC から `ping` が返る。
+
+PTP と VLAN を持つ `vlan_ptp_switch` と違い、こちらは外から IP で状態を見たり設定を変えたりできる。
 
 ## 構成
 
 FPGA の中の構成を次の図に示す。
-図は `ip_endpoint_block.drawio.svg` で、draw.io で開いて編集できる。
+図は `doc/managed_switch_block.drawio.svg` で、draw.io で開いて編集できる。
 
-![ip_endpoint の内部構成](ip_endpoint_block.drawio.svg)
+![managed_switch の内部構成](doc/managed_switch_block.drawio.svg)
 
 - Ethernet は、ボードに載っている DP83867 と RJ45 をそのまま使う。
 - スイッチのポートは、PHY につながる RGMII と、CPU につながる mailmap の 2 つである。
@@ -19,13 +22,13 @@ FPGA の中の構成を次の図に示す。
   残りの LED は CPU が動かし、受け取ったフレーム数と毎秒の反転を出す。
 - UART は、ブートローダとプログラムの出力に使う。
 
-| ファイル | 内容 |
+| 場所 | 内容 |
 |---|---|
-| `ip_endpoint.vhd` | トップ |
-| `ip_endpoint_tb.vhd` | テストベンチ |
-| `ip_endpoint.pdc` | ピン割り当て |
-| `ip_endpoint_block.drawio.svg` | 内部構成の図 |
-| `check_timing.py` | クロックごとにタイミングを確かめる |
+| `hdl/managed_switch.vhd` | トップ |
+| `hdl/managed_switch_tb.vhd` | テストベンチ |
+| `hdl/managed_switch.pdc` | ピン割り当て |
+| `doc/` | 図 |
+| `tools/` | ビルドで使うスクリプト |
 | `firmware/` | コアで動かす Rust のプログラム |
 
 ## 設計

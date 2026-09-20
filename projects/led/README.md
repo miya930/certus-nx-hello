@@ -12,9 +12,9 @@ Certus-NX Versa Evaluation Board の 8 個の汎用 LED に、2 進数のカウ�
 
 | ファイル | 内容 |
 |---|---|
-| `led_sequence.vhd` | トップ |
-| `led_sequence_tb.vhd` | テストベンチ |
-| `led_sequence.pdc` | ピン割り当て |
+| `led.vhd` | トップ |
+| `led_tb.vhd` | テストベンチ |
+| `led.pdc` | ピン割り当て |
 
 ## 設計
 
