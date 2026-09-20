@@ -11,8 +11,8 @@ entity riscv_rust is
     port (
     system_25m_clk  : in  std_logic;
     pushbutton3     : in  std_logic;
-    rxd_uart        : in  std_logic;
-    txd_uart        : out std_logic;
+    txd_uart        : in  std_logic;
+    rxd_uart        : out std_logic;
     led             : out std_logic_vector(7 downto 0));
 end riscv_rust;
 
@@ -24,6 +24,8 @@ begin
 
 -- 押しボタンは押している間だけ 0 になり、コアのリセットも負論理なので、そのまま渡す。
 -- 起動方法に内蔵ブートローダを選び、ファームウェアを UART から受け取る。
+-- UART の信号名は FTDI から見た向きで、TXD_UART は FTDI が送る線、RXD_UART は FTDI が受ける線である。
+-- コアから見ると送受が入れ替わる。
 u_core : entity neorv32.neorv32_top
     generic map(
     CLOCK_FREQUENCY  => CLK_HZ,
@@ -42,8 +44,8 @@ u_core : entity neorv32.neorv32_top
     clk_i       => system_25m_clk,
     rstn_i      => pushbutton3,
     gpio_o      => gpio,
-    uart0_txd_o => txd_uart,
-    uart0_rxd_i => rxd_uart);
+    uart0_txd_o => rxd_uart,
+    uart0_rxd_i => txd_uart);
 
 -- LED は、出力を 0 にすると点灯する。
 led <= not std_logic_vector(gpio(led'range));

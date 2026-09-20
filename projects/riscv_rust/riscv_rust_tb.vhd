@@ -15,8 +15,9 @@ constant BOOT_TIMEOUT : time := 5 ms;
 
 signal clk          : std_logic := '0';
 signal pushbutton3  : std_logic := '1';
-signal rxd_uart     : std_logic := '1';
-signal txd_uart     : std_logic;
+-- 信号名は FTDI から見た向きで、TXD_UART はホストが送る線、RXD_UART はコアが送る線である。
+signal txd_uart     : std_logic := '1';
+signal rxd_uart     : std_logic;
 signal led          : std_logic_vector(7 downto 0);
 signal test_done    : boolean := false;
 
@@ -53,14 +54,14 @@ begin
 
     assert led = (led'range => '1')
         report "reset: an LED is lit" severity error;
-    assert txd_uart = '1'
+    assert rxd_uart = '1'
         report "reset: UART is not idle" severity error;
 
     pushbutton3 <= '1';
 
     -- ブートローダが起動すると、UART が最初のスタートビットで 0 になる。
-    wait until txd_uart = '0' for BOOT_TIMEOUT;
-    assert txd_uart = '0'
+    wait until rxd_uart = '0' for BOOT_TIMEOUT;
+    assert rxd_uart = '0'
         report "bootloader did not send anything within the timeout" severity error;
 
     report "All tests finished.";
