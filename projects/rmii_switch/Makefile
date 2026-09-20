@@ -2,8 +2,8 @@ PORT_COUNT ?= 4
 
 DEVICE  := LFD2NX-40-8BG256C
 SATCAT5 := ../../third_party/satcat5/src/vhdl
-PATCHES := patches
-NEXUS   := nexus
+NEXUS   := ../../third_party/satcat5_nexus
+PATCHES := $(NEXUS)/patches
 BUILD   := build/ports$(PORT_COUNT)
 
 # GHDL で合成できない SatCat5 のファイルは、パッチを当てたコピーを元のファイルの代わりに使う。
@@ -13,7 +13,7 @@ PATCHED := $(patsubst $(PATCHES)/%.patch,build/patched/%,$(wildcard $(PATCHES)/*
 VHDL := $(filter-out $(addprefix $(SATCAT5)/common/,$(notdir $(PATCHED))),$(wildcard $(SATCAT5)/common/*.vhd)) \
         $(PATCHED) \
         $(SATCAT5)/lattice/ice40_sync.vhd \
-        $(wildcard $(NEXUS)/*.vhd) \
+        $(wildcard $(NEXUS)/primitives/*.vhd) \
         rmii_switch.vhd
 
 # Nexus のプリミティブは VHDL の実体を持たないため、未結合の警告にとどめてブラックボックスとして yosys に渡す。
@@ -41,7 +41,7 @@ $(BUILD)/rmii_switch.json: $(VHDL) Makefile
 $(BUILD)/report.json: $(BUILD)/rmii_switch.json rmii_switch.pdc
 	nextpnr-nexus --device $(DEVICE) --pdc rmii_switch.pdc --freq 50 --json $< --report $@ -l $(BUILD)/nextpnr.log -q
 
-# シミュレーションでは、Nexus のプリミティブを nexus/sim のモデルで置き換える。
+# シミュレーションでは、Nexus のプリミティブを satcat5_nexus の sim のモデルで置き換える。
 # ghdl -c は解析結果をライブラリに保存しないため、システム時刻が巻き戻っても失敗しない。
 SIM_VHDL := $(VHDL) $(wildcard $(NEXUS)/sim/*.vhd) rmii_switch_tb.vhd
 
