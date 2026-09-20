@@ -19,7 +19,7 @@ const CLINT_MTIME_HI: *mut u32 = 0xFFF4_BFFC as *mut u32;
 // CTRL のビット 19 は、送信 FIFO に空きがあることを示す。
 const UART_CTRL_TX_NFULL: u32 = 1 << 19;
 
-const CLK_HZ: u32 = 50_000_000;
+const CLK_HZ: u32 = 25_000_000;
 
 // ローカル管理のアドレスを使う。
 const MAC: [u8; 6] = [0x5A, 0x5A, 0x00, 0x00, 0x00, 0x02];

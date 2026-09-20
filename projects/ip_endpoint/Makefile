@@ -45,10 +45,13 @@ $(BUILD)/ip_endpoint.json: $(VHDL) Makefile
 		 chformal -remove; \
 		 synth_nexus -top ip_endpoint -json $@"
 
-# PDC の create_clock は入力バッファより先のクロック網に伝わらないため、目標の周波数は nextpnr-nexus に渡す。
-$(BUILD)/ip_endpoint.fasm: $(BUILD)/ip_endpoint.json ip_endpoint.pdc
-	nextpnr-nexus --device $(DEVICE) --pdc ip_endpoint.pdc --freq 50 --json $< \
+# --freq は設計全体に 1 つの目標しか与えられず、PDC の create_clock も --sdc も内部のクロック網に届かない。
+# この設計は RGMII の 125 MHz と、スイッチコアと CPU の 25 MHz を持つため、目標を高いほうに合わせる。
+# 25 MHz の回路まで 125 MHz で評価されるので失敗を許し、クロックごとの要求は check_timing.py で確かめる。
+$(BUILD)/ip_endpoint.fasm: $(BUILD)/ip_endpoint.json ip_endpoint.pdc check_timing.py
+	nextpnr-nexus --device $(DEVICE) --pdc ip_endpoint.pdc --freq 125 --timing-allow-fail --json $< \
 		--fasm $@ --report $(BUILD)/report.json -l $(BUILD)/nextpnr.log -q
+	python3 check_timing.py $(BUILD)/report.json
 
 $(BUILD)/ip_endpoint.bit: $(BUILD)/ip_endpoint.fasm
 	prjoxide pack $< $@
