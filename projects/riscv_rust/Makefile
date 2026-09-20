@@ -1,6 +1,12 @@
 DEVICE  := LFD2NX-40-8BG256C
 NEORV32 := ../../third_party/neorv32
 BUILD   := build
+PORT    ?= /dev/ttyUSB1
+
+# llvm-objcopy はホスト以外の対象を扱えるため、RISC-V の ELF を平坦なバイナリにできる。
+LLVM_OBJCOPY := $(shell find $$(rustc --print sysroot) -name llvm-objcopy | head -1)
+FIRMWARE_ELF := $(BUILD)/firmware/riscv32imc-unknown-none-elf/release/riscv_rust_firmware
+EXE          := $(BUILD)/neorv32_exe.bin
 
 # NEORV32 は VHDL-2008 で書かれ、自身を neorv32 ライブラリに置くことを前提にしている。
 # トップも同じライブラリに入れると、ライブラリ参照が 1 つで済む。
@@ -45,7 +51,27 @@ load: $(BUILD)/riscv_rust.bit
 flash: $(BUILD)/riscv_rust.bit
 	openFPGALoader -b certusnx_versa_evn -f $<
 
+# cargo が更新の要否を判断するため、この入口は常に実行する。
+.PHONY: firmware
+firmware:
+	cd firmware && cargo build --release
+
+# ブートローダは ELF を読めないため、平坦なバイナリにしてからヘッダを付ける。
+$(BUILD)/firmware.bin: firmware
+	$(LLVM_OBJCOPY) -O binary $(FIRMWARE_ELF) $@
+
+$(BUILD)/image_gen: $(NEORV32)/sw/image_gen/image_gen.c
+	mkdir -p $(BUILD)
+	$(CC) -o $@ $<
+
+$(EXE): $(BUILD)/firmware.bin $(BUILD)/image_gen
+	$(BUILD)/image_gen -i $< -o $@ -b 0x00000000 -t exe
+
+# ファームウェアを UART から流し込んで実行する。FPGA のコンフィグとは経路が分かれる。
+upload: $(EXE)
+	uv run ../../tools/neorv32_upload/neorv32_upload.py --watch 5 $(PORT) $(EXE)
+
 clean:
 	rm -rf build
 
-.PHONY: all sim load flash clean
+.PHONY: all sim load flash upload clean

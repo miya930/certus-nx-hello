@@ -18,6 +18,7 @@ LFD2NX-40 に NEORV32 の RISC-V コアを実装し、Rust で書いたプログ
 | `riscv_rust.vhd` | トップ |
 | `riscv_rust_tb.vhd` | テストベンチ |
 | `riscv_rust.pdc` | ピン割り当て |
+| `firmware/` | コアで動かす Rust のプログラム |
 
 ## 設計
 
@@ -30,6 +31,21 @@ LFD2NX-40 に NEORV32 の RISC-V コアを実装し、Rust で書いたプログ
 - LED は 0 で点灯するため、GPIO の出力を反転して出す。
 - UART の信号名は FTDI から見た向きである。
   TXD_UART は FTDI が送る線なので FPGA の入力、RXD_UART は FTDI が受ける線なので FPGA の出力になる。
+
+## ファームウェア
+
+`firmware/` に `no_std` の Rust のプログラムを置く。
+UART に文字列を出し、LED に 2 進数のカウンタを表示する。
+
+- 対象は `riscv32imc-unknown-none-elf` で、コアに実装した命令セットと合わせる。
+- 起動処理は `riscv-rt` に任せる。
+- メモリの位置と大きさは `firmware/memory.x` に書き、トップの generic と合わせる。
+- UART の速度はブートローダが設定した値をそのまま使い、制御レジスタを書き換えない。
+- 待ち時間はマシンタイマの値から求める。
+  タイマはシステムクロックで進むため、点滅の周期がクロックの設定と合っているかの確認になる。
+
+ブートローダは ELF を読めない。
+`llvm-objcopy` で平坦なバイナリにし、NEORV32 の `image_gen` で署名とチェックサムを付けた実行ファイルにする。
 
 ## ジャンパの設定
 
@@ -75,8 +91,15 @@ yosys、GHDL、nextpnr-nexus を含む OSS CAD Suite が必要になる。
 ```sh
 make        # 合成と配置配線、ビットストリームの生成
 make sim    # テストベンチ
-make load   # SRAM に書き込む
-make flash  # SPI Flash に書き込む
+make load   # FPGA を SRAM にコンフィグする
+make flash  # FPGA を SPI Flash にコンフィグする
+make upload # ファームウェアを UART から流し込んで実行する
+```
+
+`make upload` が使うシリアルポートは `PORT` で変えられる。
+
+```sh
+make upload PORT=/dev/ttyUSB0
 ```
 
 - `make` は、`build/report.json` に資源ごとの使用数と最大動作周波数を出力する。
