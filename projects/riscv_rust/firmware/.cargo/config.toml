@@ -1,0 +1,7 @@
+[build]
+target = "riscv32imc-unknown-none-elf"
+# ビルド生成物は、他のプロジェクトと同じく build/ の下に出す。
+target-dir = "../build/firmware"
+
+[target.riscv32imc-unknown-none-elf]
+rustflags = ["-C", "link-arg=-Tmemory.x", "-C", "link-arg=-Tlink.x"]

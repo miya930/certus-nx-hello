@@ -1,0 +1,12 @@
+[package]
+name = "riscv_rust_firmware"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+riscv-rt = { version = "0.18", features = ["single-hart"] }
+panic-halt = "1.0"
+
+[profile.release]
+opt-level = "s"
+lto = true
