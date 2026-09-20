@@ -1,3 +1,6 @@
 [submodule "third_party/satcat5"]
 	path = third_party/satcat5
 	url = https://github.com/the-aerospace-corporation/satcat5.git
+[submodule "third_party/neorv32"]
+	path = third_party/neorv32
+	url = https://github.com/stnolting/neorv32.git
