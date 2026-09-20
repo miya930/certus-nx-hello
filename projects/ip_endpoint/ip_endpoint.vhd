@@ -111,8 +111,11 @@ signal xbus_rdat    : std_logic_vector(31 downto 0);
 signal xbus_cyc     : std_ulogic;
 signal xbus_stb     : std_ulogic;
 signal xbus_we      : std_ulogic;
-signal xbus_ack     : std_logic;
-signal xbus_err     : std_logic;
+signal wb_ack       : std_logic;
+signal wb_err       : std_logic;
+signal wb_rdat      : std_logic_vector(31 downto 0);
+signal xbus_ack     : std_logic := '0';
+signal xbus_err     : std_logic := '0';
 
 begin
 
@@ -190,9 +193,21 @@ u_cfgbus : entity work.cfgbus_host_wishbone
     wb_dat_i    => std_logic_vector(xbus_wdat),
     wb_stb_i    => xbus_stb,
     wb_we_i     => xbus_we,
-    wb_ack_o    => xbus_ack,
-    wb_dat_o    => xbus_rdat,
-    wb_err_o    => xbus_err);
+    wb_ack_o    => wb_ack,
+    wb_dat_o    => wb_rdat,
+    wb_err_o    => wb_err);
+
+-- NEORV32 の外部バスは、ストローブを 1 サイクルしか出さず、応答をその次のサイクルから受け付ける。
+-- ブリッジは書き込みの応答をストローブと同じサイクルに返すため、1 サイクル遅らせて合わせる。
+-- 読み出しのデータは応答と同時に確定するため、同じタイミングで取り込む。
+p_xbus_rsp : process(system_25m_clk)
+begin
+    if rising_edge(system_25m_clk) then
+        xbus_ack  <= wb_ack;
+        xbus_err  <= wb_err;
+        xbus_rdat <= wb_rdat;
+    end if;
+end process;
 
 -- 起動方法に内蔵ブートローダを選び、ファームウェアを UART から受け取る。
 -- UART の信号名は FTDI から見た向きで、コアから見ると送受が入れ替わる。
