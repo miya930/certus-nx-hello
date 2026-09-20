@@ -83,11 +83,21 @@ begin
          & config_mdio_rom_cmd(0, PHY_ADDR, REG_ADDAR, value);
 end function;
 
--- 拡張レジスタ 1 つにつき 4 回の書き込みが必要になる。
-constant CMD_COUNT  : positive := 8;
+-- スイッチコアは 25 MHz で 200 Mbps までしか扱えないため、1000BASE-T を広告させない。
+-- CFG1 のビット 9 と 8 が 1000BASE-T の全二重と半二重の広告で、両方を落とす。
+-- 広告を変えた後は、BMCR で自動交渉をやり直させる。
+constant REG_CFG1       : natural := 16#09#;
+constant CFG1_VALUE     : natural := 16#0000#;
+constant REG_BMCR       : natural := 16#00#;
+constant BMCR_VALUE     : natural := 16#1200#;
+
+-- 拡張レジスタ 1 つにつき 4 回、通常のレジスタは 1 回の書き込みになる。
+constant CMD_COUNT  : positive := 10;
 constant ROM_VECTOR : std_logic_vector(32*CMD_COUNT-1 downto 0) :=
     mdio_write(REG_RGMIICTL, RGMIICTL_VALUE) &
-    mdio_write(REG_RGMIIDCTL, RGMIIDCTL_VALUE);
+    mdio_write(REG_RGMIIDCTL, RGMIIDCTL_VALUE) &
+    config_mdio_rom_cmd(0, PHY_ADDR, REG_CFG1, CFG1_VALUE) &
+    config_mdio_rom_cmd(0, PHY_ADDR, REG_BMCR, BMCR_VALUE);
 
 signal reset_p      : std_logic;
 signal phy_reset_n  : std_logic := '0';
@@ -105,6 +115,7 @@ signal tx_data      : array_tx_s2m(PORT_TOTAL-1 downto 0);
 signal tx_ctrl      : array_tx_m2s(PORT_TOTAL-1 downto 0);
 
 signal gpio         : std_ulogic_vector(31 downto 0);
+signal port_state   : std_ulogic_vector(31 downto 0);
 signal xbus_adr     : std_ulogic_vector(31 downto 0);
 signal xbus_wdat    : std_ulogic_vector(31 downto 0);
 signal xbus_rdat    : std_logic_vector(31 downto 0);
@@ -223,13 +234,14 @@ u_cpu : entity neorv32.neorv32_top
     DMEM_EN          => true,
     DMEM_SIZE        => DMEM_BYTES,
     XBUS_EN          => true,
-    IO_GPIO_NUM      => led'length,
+    IO_GPIO_NUM      => gpio'length,
     IO_CLINT_EN      => true,
     IO_UART0_EN      => true)
     port map(
     clk_i       => system_25m_clk,
     rstn_i      => pushbutton3,
     gpio_o      => gpio,
+    gpio_i      => port_state,
     uart0_txd_o => rxd_uart,
     uart0_rxd_i => txd_uart,
     xbus_adr_o  => xbus_adr,
@@ -274,6 +286,15 @@ u_core : entity work.switch_core
     scrub_req_t     => '0',
     core_clk        => system_25m_clk,
     core_reset_p    => reset_p);
+
+-- RGMII のポートが何を見ているかを CPU から読めるようにする。
+-- rate はリンク速度が Mbps でそのまま入る。
+port_state(15 downto 0)  <= std_ulogic_vector(rx_data(PORT_PHY).rate);
+port_state(23 downto 16) <= std_ulogic_vector(rx_data(PORT_PHY).status);
+port_state(24) <= mdio_done;
+port_state(25) <= rx_data(PORT_PHY).reset_p;
+port_state(26) <= tx_ctrl(PORT_PHY).reset_p;
+port_state(31 downto 27) <= (others => '0');
 
 -- LED は、出力を 0 にすると点灯する。
 -- 最下位は MDIO の設定が終わったことを示し、残りは CPU が動かす。

@@ -5,10 +5,10 @@ IP の処理は Rust の smoltcp が行い、PC から `ping` が通ることを
 
 ## 構成
 
-```
-DP83867 ── port_rgmii ─┬─ switch_core ── port_mailmap ── NEORV32 ── smoltcp
-                       └─ (ポートを足せる)
-```
+FPGA の中の構成を次の図に示す。
+図は `ip_endpoint_block.drawio.svg` で、draw.io で開いて編集できる。
+
+![ip_endpoint の内部構成](ip_endpoint_block.drawio.svg)
 
 - Ethernet は、ボードに載っている DP83867 と RJ45 をそのまま使う。
 - スイッチのポートは、PHY につながる RGMII と、CPU につながる mailmap の 2 つである。
@@ -24,6 +24,7 @@ DP83867 ── port_rgmii ─┬─ switch_core ── port_mailmap ── NEORV
 | `ip_endpoint.vhd` | トップ |
 | `ip_endpoint_tb.vhd` | テストベンチ |
 | `ip_endpoint.pdc` | ピン割り当て |
+| `ip_endpoint_block.drawio.svg` | 内部構成の図 |
 | `check_timing.py` | クロックごとにタイミングを確かめる |
 | `firmware/` | コアで動かす Rust のプログラム |
 
@@ -121,9 +122,35 @@ smoltcp はソケットを 1 つも有効にしないと組み上がらないた
 - ブートローダが UART へ送信を始める。
   CPU がスイッチコアと ConfigBus を抱えた構成でも動き出すことの確認になる。
 
-ARP や ICMP の応答は、まだ確認できていない。
-確かめるには、ファームウェアをビットストリームに焼き込む構成に変えて、
-テストベンチからフレームを流し込む必要がある。
+### 実機での確認
+
+PC と RJ45 を直結し、`ping` が返ることを確認した。
+
+```
+Reply from 169.254.111.50: bytes=32 time=1ms TTL=64
+    Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)
+```
+
+実機で動かすまでに、次の 3 つの不具合を直した。
+
+**ConfigBus で CPU が止まった。**
+NEORV32 はストローブを 1 サイクルしか出さず、応答をその次のサイクルから受け付ける。
+SatCat5 のブリッジは書き込みの応答をストローブと同じサイクルに返すため、応答が捨てられていた。
+応答とデータを 1 サイクル遅らせて解決した。
+
+**フレームが 1 つも届かなかった。**
+自動交渉で 1000BASE-T にリンクしていたが、スイッチコアは 25 MHz で 200 Mbps までしか扱えない。
+MDIO で 1000BASE-T の広告を止めて 100BASE-TX に落とすと、受信が始まった。
+
+**ARP には応答するが ICMP には応答しなかった。**
+smoltcp の自動 echo 応答は `auto-icmp-echo-reply` で囲まれており、既定では無効である。
+機能を有効にして解決した。
+
+### 試験に使ったアドレス
+
+`169.254.111.50/16` は、PC 側が DHCP のアドレスを取れずに使うリンクローカルの範囲に合わせた値である。
+PC の設定を変えずに試せる。
+別のネットワークで使うときは `firmware/src/main.rs` の定数を変える。
 
 ## 回路規模
 
