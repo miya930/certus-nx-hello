@@ -1,5 +1,5 @@
 //! probe-rs が NEORV32 の SPI で MT25QU128 に書き込むためのプログラム。
-//! probe-rs はこれをデータメモリに置いて呼び、ファームウェアの像を Flash に書く。
+//! probe-rs はこれをデータメモリに置いて呼び、firmware image を Flash に書く。
 
 #![no_std]
 #![no_main]
@@ -8,10 +8,10 @@ use flash_algorithm::*;
 use mt25q::Mt25q;
 use neorv32_hal::{pac, spi::Spi};
 
-/// probe-rs は Flash を番地で扱うため、SPI Flash の 0 番地をこの番地に見せる。
-/// NEORV32 の番地では外部バスにあたり、コアがこの番地を読み書きすることはない。
+/// probe-rs は Flash をアドレスで扱うため、SPI Flash のアドレス 0 をこのアドレスに見せる。
+/// NEORV32 のアドレス空間では外部バスにあたり、コアがこのアドレスを読み書きすることはない。
 const WINDOW_BASE: u32 = 0x2000_0000;
-/// probe-rs に見せるのは、ファームウェアの像を置く範囲だけにする。
+/// probe-rs に見せるのは、firmware image を置く範囲だけにする。
 /// ビットストリームと設定を消さないためである。範囲は third_party/neorv32_probe_rs/bootrom の IMAGE_OFFSET に合わせる。
 const IMAGE_OFFSET: u32 = 0x00F0_0000;
 const IMAGE_AREA_BYTES: u32 = 0x0002_0000;

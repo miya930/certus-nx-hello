@@ -10,7 +10,7 @@ const MTU: usize = 1514;
 const BUFFER_BYTES: usize = 1600;
 const WORD_BYTES: usize = 4;
 
-/// port_mailmap のレジスタ。ConfigBus への橋渡しはバイト単位の書き込みを持たないため、フレームはワード単位で読み書きする。
+/// port_mailmap のレジスタ。ConfigBus へのブリッジはバイト単位の書き込みを持たないため、フレームはワード単位で読み書きする。
 #[derive(Clone, Copy)]
 struct Mailmap {
     regs: *const port_mailmap::RegisterBlock,

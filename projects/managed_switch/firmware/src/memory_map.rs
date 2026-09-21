@@ -1,5 +1,5 @@
 //! このプロジェクトで、ConfigBus のデバイスがどこにあるか。
-//! 番地は hdl/managed_switch.vhd と合わせる。NEORV32 に内蔵の周辺の番地は neorv32-pac にある。
+//! アドレスは hdl/managed_switch.vhd と合わせる。NEORV32 に内蔵の周辺のアドレスは neorv32-pac にある。
 
 use crate::drivers::switch::{Addresses, Switch};
 

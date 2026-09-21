@@ -1,7 +1,7 @@
 # probe-rs に、このコアのメモリの位置を教える。
 # 位置と大きさは hdl/managed_switch.vhd の generic と firmware/memory.x に合わせる。
 # 命令メモリは RAM で、JTAG から書き込んだあとリセットすると、起動 ROM が先頭へ飛ぶ。
-# FLASH は SPI Flash のうち、ファームウェアの像を置く範囲である。
+# FLASH は SPI Flash のうち、firmware image を置く範囲である。
 # 書き込みプログラムは flash_algorithms/mt25q から target-gen elf で作った。
 name: NEORV32
 variants:

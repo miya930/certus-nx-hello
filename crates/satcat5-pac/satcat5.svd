@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   SatCat5 の ConfigBus のデバイスのうち、このリポジトリのファームウェアが使うもののレジスタ。
-  各デバイスのコメントに書かれたレジスタの一覧を、そのまま写した。
-  ConfigBus のレジスタは 32 ビットで、レジスタ番号の 4 倍が番地になる。
-  デバイスの番地は設計ごとに違うため、ここでは 0 とし、各プロジェクトが与える。
+  各デバイスのコメントに書かれたレジスタの一覧を、そのまま書き写した。
+  ConfigBus のレジスタは 32 ビットで、レジスタ番号の 4 倍がアドレスになる。
+  デバイスのアドレスは設計ごとに違うため、ここでは 0 とし、各プロジェクトが与える。
 -->
 <device schemaVersion="1.3" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD.xsd">
   <name>SATCAT5</name>

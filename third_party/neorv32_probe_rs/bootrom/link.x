@@ -16,7 +16,7 @@ SECTIONS
     *(.rodata .rodata.* .srodata .srodata.*)
   } > BOOTROM
 
-  /* ROM から初期値を写す処理を持たないため、初期値のある静的変数は持たない。 */
+  /* ROM から初期値をコピーする処理を持たないため、初期値のある静的変数は持たない。 */
   .data : { *(.data .data.* .sdata .sdata.*) } > BOOTROM
   /* 0 で埋める処理も持たないため、.bss は PAC の steal が書くだけの印に限る。 */
   .bss (NOLOAD) : { *(.bss .bss.* .sbss .sbss.*) } > STACK

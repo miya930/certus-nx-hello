@@ -3,7 +3,7 @@
 use embedded_hal::delay::DelayNs;
 use neorv32_hal::mtime::Mtime;
 
-/// マシンタイマは読むだけなので、この型は写して使える。
+/// マシンタイマは読むだけなので、この型はコピーして使える。
 #[derive(Clone, Copy)]
 pub struct Clock {
     mtime: Mtime,

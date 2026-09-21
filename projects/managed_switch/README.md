@@ -31,19 +31,19 @@ CPU は、全てのデバイスをメモリマップド I/O として、アド�
 #### 書き込む先
 
 ビットストリーム、ファームウェア、設定を、どのアドレスに何で書くかを次の図に示す。
-緑の矢印は、電源を入れた直後に、起動 ROM が Flash の像を命令メモリに写す流れである。
+緑の矢印は、電源を入れた直後に、起動 ROM が Flash の firmware image を命令メモリにコピーする流れである。
 
 ![書き込む先と経路](doc/managed_switch_memory_map.svg)
 
 | 書くもの | 書く先 | 手段 | 経路 |
 |---|---|---|---|
 | FPGA のビットストリーム | Flash の `0x000000` から | `make flash` | openFPGALoader が、FT2232H の JTAG から FPGA を通して書く |
-| ファームウェアの像 | Flash の `0xF00000` から | `cargo run` | probe-rs が書き込みプログラムをデータメモリの `0x80000020` に置き、NEORV32 の SPI で書く |
+| firmware image | Flash の `0xF00000` から | `cargo run` | probe-rs が書き込みプログラムをデータメモリの `0x80000020` に置き、NEORV32 の SPI で書く |
 | ファームウェア | 命令メモリの `0x00000000` から | `cargo run`、`cargo run-ram` | probe-rs が、NEORV32 の JTAG で直接書く |
-| ファームウェア | 命令メモリの `0x00000000` から | 電源投入 | 命令メモリが空のとき、起動 ROM が Flash の像を NEORV32 の SPI で読んで写す |
+| ファームウェア | 命令メモリの `0x00000000` から | 電源投入 | 命令メモリが空のとき、起動 ROM が Flash の firmware image を NEORV32 の SPI で読んでコピーする |
 | 保存した設定 | Flash の `0xFFF000` から | コンソールの `save` | ファームウェアが、NEORV32 の SPI で書く |
 
-probe-rs は Flash を番地で扱うため、Flash の位置に `0x20000000` を足した番地で指す。
+probe-rs は Flash をアドレスで扱うため、Flash の位置に `0x20000000` を足したアドレスで指す。
 その理由と、probe-rs に見せる範囲を絞る理由は、`flash_algorithms/mt25q/README.md` にある。
 
 #### CPU のアドレス空間
@@ -68,7 +68,7 @@ probe-rs は Flash を番地で扱うため、Flash の位置に `0x20000000` �
 
 `0x90000000` からの 4 つは、ConfigBus のデバイスである。
 表にないアドレスは、全て外部バスを通って ConfigBus に届く。
-ConfigBus への橋渡しはアドレスの下位 20 ビットしか見ないため、ファームウェアは `0x90000000` からの範囲だけを使う。
+ConfigBus へのブリッジはアドレスの下位 20 ビットしか見ないため、ファームウェアは `0x90000000` からの範囲だけを使う。
 命令メモリとデータメモリの位置と大きさは、`hdl/managed_switch.vhd` の generic、`firmware/memory.x`、`neorv32.yaml` で合わせる。
 
 #### ConfigBus のレジスタ
@@ -150,11 +150,11 @@ Flash は 128 Mbit で、アドレスは `0x000000` から `0xFFFFFF` まであ�
 |---|---|
 | `0x000000` から | FPGA のビットストリーム。今の設計で約 1 MB |
 | ビットストリームの後ろから `0xEFFFFF` まで | 空き |
-| `0xF00000` から `0xF1FFFF` まで | ファームウェアの像 |
+| `0xF00000` から `0xF1FFFF` まで | firmware image |
 | `0xF20000` から `0xFFEFFF` まで | 空き |
 | `0xFFF000` から `0xFFFFFF` まで | 保存した設定。先頭の 25 バイトだけを使う |
 
-ファームウェアの像の書式と、起動 ROM がそれを命令メモリに写す条件は、`third_party/neorv32_probe_rs/README.md` にある。
+firmware image の書式と、起動 ROM がそれを命令メモリにコピーする条件は、`third_party/neorv32_probe_rs/README.md` にある。
 
 保存する設定の書式は次のとおりで、複数バイトの値はネットワークの並びで置く。
 CRC-32 だけは、下位のバイトから置く。
@@ -224,10 +224,10 @@ probe-rs は書き込みの進み具合を表示する。
 命令メモリにも書くのは、書いた直後から Flash を読まずに動かし、defmt のログを見るためである。
 
 電源を入れた直後と、FPGA をコンフィグし直した直後は、命令メモリが空である。
-そのとき起動 ROM が Flash の像を命令メモリに写し、ファームウェアを動かす。
+そのとき起動 ROM が Flash の firmware image を命令メモリにコピーし、ファームウェアを動かす。
 
 Flash の SPI は、この基板の線で安定する約 98 kHz で動かす。
-そのため、約 36 KB のファームウェアを Flash に書くのに約 21 秒、起動時に写すのに約 3 秒かかる。
+そのため、約 36 KB のファームウェアを Flash に書くのに約 21 秒、起動時にコピーするのに約 3 秒かかる。
 
 ### MAC アドレステーブルの学び直し
 
@@ -310,7 +310,7 @@ DP83867 は、`Switch` の MDIO を通して読み書きする。
 
 レジスタの型は、NEORV32 と SatCat5 のどちらも、SVD から svd2rust で生成する。
 SatCat5 の SVD は、`crates/satcat5-pac/satcat5.svd` に書いた。
-SatCat5 のデバイスの番地は、`firmware/src/memory_map.rs` で与える。
+SatCat5 のデバイスのアドレスは、`firmware/src/memory_map.rs` で与える。
 
 `port_mailmap` は、`Switch` から smoltcp の `Device` として取り出す。
 ARP と ICMP の echo には smoltcp が応答するため、ソケットは開かない。
@@ -346,7 +346,7 @@ CPU のポートで 1000 バイトの ping を 1 つ処理すると、その回�
 | 場所 | 層 | 役割 |
 |---|---|---|
 | `main.rs` | | 起動と主ループ |
-| `memory_map.rs` | | ConfigBus のデバイスの番地 |
+| `memory_map.rs` | | ConfigBus のデバイスのアドレス |
 | `ports.rs` | | スイッチのポートの番号と名前 |
 | `host.rs` | アプリ | スイッチ自身の IP アドレスでの通信 |
 | `console/` | アプリ | 行の編集とコマンド |

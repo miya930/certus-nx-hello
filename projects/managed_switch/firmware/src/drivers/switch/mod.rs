@@ -13,7 +13,7 @@ pub use stats::RMII_STATUS_LOCK;
 
 use satcat5_pac::{mdio as mdio_regs, port_mailmap, port_stats, switch_core};
 
-/// スイッチングハブを構成する ConfigBus のデバイスの番地。
+/// スイッチングハブを構成する ConfigBus のデバイスのアドレス。
 pub struct Addresses {
     pub core: usize,
     pub mailmap: usize,
@@ -30,7 +30,7 @@ pub struct Info {
     pub frame_max: u32,
 }
 
-/// レジスタは ConfigBus の番地にあるため、この型は番地だけを持ち、どこからでも写して使える。
+/// レジスタは ConfigBus のアドレスにあるため、この型はアドレスだけを持ち、どこでもコピーして使える。
 #[derive(Clone, Copy)]
 pub struct Switch {
     core: *const switch_core::RegisterBlock,
