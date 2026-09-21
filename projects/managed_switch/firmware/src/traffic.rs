@@ -3,6 +3,7 @@
 
 use crate::memory_map::PORT_STATS;
 use crate::ports::{PORT_COUNT, PORT_NAMES};
+use crate::ticker::Ticker;
 use neorv32_hal::mtime::Mtime;
 
 /// 取り込みの間隔。1 秒あたりの数は 32 ビットの数に収まる。
@@ -21,6 +22,7 @@ pub struct Totals {
 
 pub struct Traffic {
     mtime: Mtime,
+    sampling: Ticker,
     pub totals: [Totals; PORT_COUNT],
     /// 累計を数え始めた時刻。
     since_msec: u64,
@@ -34,6 +36,7 @@ impl Traffic {
     pub fn new(mtime: Mtime) -> Self {
         Traffic {
             mtime,
+            sampling: Ticker::new(mtime, SAMPLE_MSEC),
             totals: [Totals::default(); PORT_COUNT],
             since_msec: 0,
             last_msec: 0,
@@ -43,8 +46,15 @@ impl Traffic {
         }
     }
 
+    /// 取り込みの周期が来ていれば取り込む。
+    pub fn poll(&mut self) {
+        if self.sampling.due() {
+            self.sample();
+        }
+    }
+
     /// 前回の取り込みからの数を読み、累計に足す。
-    pub fn sample(&mut self) {
+    fn sample(&mut self) {
         let now = self.mtime.millis();
         PORT_STATS.refresh(&mut self.mtime);
         for (port, totals) in self.totals.iter_mut().enumerate() {
@@ -69,10 +79,6 @@ impl Traffic {
         }
         self.last_interval_msec = now - self.last_msec;
         self.last_msec = now;
-    }
-
-    pub fn due(&self) -> bool {
-        self.mtime.millis() >= self.last_msec + SAMPLE_MSEC
     }
 
     pub fn clear(&mut self) {

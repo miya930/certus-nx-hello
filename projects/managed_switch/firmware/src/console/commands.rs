@@ -57,11 +57,11 @@ impl<'a> Commands<'a> {
         Commands { state, out }
     }
 
-    /// 行を実行し、設定を変えたときは真を返す。呼び出し側が、その設定を動作に反映する。
-    pub fn execute(&mut self, line: &str) -> bool {
+    /// 行を実行する。設定を変えるコマンドは状態の設定を書き換えるだけで、動作への反映は呼び出し側が行う。
+    pub fn execute(&mut self, line: &str) {
         let mut words = line.split_ascii_whitespace();
         let Some(command) = words.next() else {
-            return false;
+            return;
         };
         match command {
             "help" => self.help(),
@@ -70,7 +70,7 @@ impl<'a> Commands<'a> {
             "mac" => self.mac(words.next()),
             "info" => self.info(),
             "show" => self.show(),
-            "set" => return self.set(words.next(), words.next()),
+            "set" => self.set(words.next(), words.next()),
             "save" => {
                 let Ok(()) = self.state.settings.save(&mut self.state.flash);
                 self.state.saved = Some(self.state.settings);
@@ -80,11 +80,9 @@ impl<'a> Commands<'a> {
             "defaults" => {
                 self.state.settings = settings::DEFAULT;
                 self.out.puts_styled(Style::WARNING, "Restored the defaults. Use \"save\" to keep them.\n");
-                return true;
             }
             _ => self.error(&["Unknown command \"", command, "\". Type \"help\" for the list.\n"]),
         }
-        false
     }
 
     /// 入力中の単語の前にある部分から、次に入りうる単語を渡す。
@@ -299,7 +297,7 @@ impl<'a> Commands<'a> {
         }
     }
 
-    fn set(&mut self, item: Option<&str>, value: Option<&str>) -> bool {
+    fn set(&mut self, item: Option<&str>, value: Option<&str>) {
         let (Some(item), Some(value)) = (item, value) else {
             for (name, syntax) in SET_ITEMS {
                 self.out.puts("set ");
@@ -307,7 +305,7 @@ impl<'a> Commands<'a> {
                 self.out.puts(syntax);
                 self.out.puts("\n");
             }
-            return false;
+            return;
         };
         let settings = &mut self.state.settings;
         let accepted = match item {
@@ -320,14 +318,12 @@ impl<'a> Commands<'a> {
             "mirror" => Self::parse_optional(value, Self::parse_port).map(|port| settings.mirror = port),
             _ => {
                 self.error(&["Unknown setting \"", item, "\". Type \"set\" for the list.\n"]);
-                return false;
+                return;
             }
         };
         if accepted.is_none() {
             self.error(&["Invalid value \"", value, "\".\n"]);
-            return false;
         }
-        true
     }
 
     /// "none" は値がないことを表す。
