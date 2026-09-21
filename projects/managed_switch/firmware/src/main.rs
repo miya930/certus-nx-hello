@@ -11,6 +11,7 @@ mod mdio;
 mod settings;
 mod sgr;
 mod switch;
+mod traffic;
 mod uart;
 
 use core::ptr::{read_volatile, write_volatile};
@@ -22,6 +23,7 @@ use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 use commands::State;
 use console::Console;
 use settings::Settings;
+use traffic::Traffic;
 
 const GPIO_PORT_IN: *const u32 = 0xFFFC_0000 as *const u32;
 const GPIO_PORT_OUT: *mut u32 = 0xFFFC_0004 as *mut u32;
@@ -76,6 +78,7 @@ fn main() -> ! {
     let mut state = State {
         settings: saved.unwrap_or(settings::DEFAULT),
         saved,
+        traffic: Traffic::new(),
     };
 
     while unsafe { read_volatile(GPIO_PORT_IN) } & GPIO_IN_PHY_READY == 0 {}
@@ -106,6 +109,10 @@ fn main() -> ! {
                 }
                 console.prompt();
             }
+        }
+
+        if state.traffic.due() {
+            state.traffic.sample();
         }
 
         let millis = clint::millis();

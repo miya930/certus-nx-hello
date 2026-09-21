@@ -1,9 +1,11 @@
 //! コンソールのコマンドを解釈して実行する。
 
+use crate::clint;
 use crate::mdio;
 use crate::settings::{self, Settings};
 use crate::sgr::{puts_styled, puts_styled_padded, BOLD, GREEN, RED, RESET, YELLOW};
 use crate::switch::{self, PORT_NAMES, PORT_RGMII, PORT_RMII};
+use crate::traffic::Traffic;
 use crate::uart::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
 
 pub struct State {
@@ -11,13 +13,15 @@ pub struct State {
     pub settings: Settings,
     /// Flash に保存してある設定。保存したことがなければ None になる。
     pub saved: Option<Settings>,
+    pub traffic: Traffic,
 }
 
-const COMMANDS: [(&str, &str); 8] = [
+const COMMANDS: [(&str, &str); 9] = [
     ("help", "Show this list."),
-    ("status", "Show the link state of each port."),
-    ("stats", "Show the traffic since the last \"stats\"."),
-    ("info", "Show the parameters of the switch core."),
+    ("status", "Show the link state and the load of each port."),
+    ("stats", "Show the traffic since boot. \"stats clear\" restarts the count."),
+    ("mac", "Show the MAC address table. \"mac clear\" empties it."),
+    ("info", "Show the parameters of the switch core and the uptime."),
     ("show", "Show the settings."),
     ("set", "Change a setting. Type \"set\" for the list."),
     ("save", "Save the settings to the SPI Flash."),
@@ -32,7 +36,12 @@ const SET_ITEMS: [(&str, &str); 4] = [
 ];
 
 const NONE_WORD: &str = "none";
+const CLEAR_WORD: &str = "clear";
 const HELP_COLUMN: usize = 10;
+const MSEC_PER_SEC: u64 = 1000;
+const SEC_PER_MIN: u64 = 60;
+const MIN_PER_HOUR: u64 = 60;
+const HOUR_PER_DAY: u64 = 24;
 
 /// 行を実行し、設定を変えたときは真を返す。呼び出し側が、その設定を動作に反映する。
 pub fn execute(line: &str, state: &mut State) -> bool {
@@ -42,8 +51,9 @@ pub fn execute(line: &str, state: &mut State) -> bool {
     };
     match command {
         "help" => help(),
-        "status" => status(),
-        "stats" => stats(),
+        "status" => status(&state.traffic),
+        "stats" => stats(words.next(), &mut state.traffic),
+        "mac" => mac(words.next()),
         "info" => info(),
         "show" => show(state),
         "set" => return set(words.next(), words.next(), &mut state.settings),
@@ -79,6 +89,7 @@ pub fn complete(context: &str, emit: &mut dyn FnMut(&'static str)) {
             emit(NONE_WORD);
         }
         (Some("set"), Some("gateway"), None) => emit(NONE_WORD),
+        (Some("stats" | "mac"), None, _) => emit(CLEAR_WORD),
         _ => {}
     }
 }
@@ -91,10 +102,29 @@ fn help() {
     }
 }
 
-fn status() {
-    puts_styled(BOLD, "PORT    LINK  SPEED  DUPLEX  NOTE\n");
+/// 表の見出しを、列の幅に合わせて並べる。最後の列は幅を持たない。
+fn header(columns: &[(&str, usize)]) {
+    puts(BOLD);
+    for &(title, width) in columns {
+        puts_padded(title, width);
+    }
+    puts(RESET);
+    puts("\n");
+}
+
+fn put_count(count: u64, width: usize) {
+    if count > 0 {
+        puts(YELLOW);
+    }
+    put_dec_padded(count, width);
+    puts(RESET);
+}
+
+fn status(traffic: &Traffic) {
+    header(&[("PORT", 8), ("LINK", 6), ("SPEED", 7), ("DUPLEX", 8), ("RX KBPS", 9), ("TX KBPS", 9), ("NOTE", 0)]);
     for (port, name) in PORT_NAMES.iter().enumerate() {
         puts_padded(name, 8);
+        let (rx_kbps, tx_kbps) = traffic.rate_kbps(port);
         match port {
             PORT_RGMII => {
                 // RGMII の相手は DP83867 なので、PHY のレジスタからリンクを読む。
@@ -106,6 +136,8 @@ fn status() {
                 }
                 put_dec_padded(phy.speed_mbps, 7);
                 puts_padded(if phy.full_duplex { "full" } else { "half" }, 8);
+                put_dec_padded(rx_kbps, 9);
+                put_dec_padded(tx_kbps, 9);
                 puts("DP83867");
             }
             PORT_RMII => {
@@ -120,6 +152,8 @@ fn status() {
                     puts_padded("-", 7);
                 }
                 puts_padded("-", 8);
+                put_dec_padded(rx_kbps, 9);
+                put_dec_padded(tx_kbps, 9);
                 if locked {
                     puts("LAN8720, REF_CLK locked");
                 } else {
@@ -130,29 +164,106 @@ fn status() {
                 puts_styled_padded(GREEN, "up", 6);
                 puts_padded("-", 7);
                 puts_padded("-", 8);
+                put_dec_padded(rx_kbps, 9);
+                put_dec_padded(tx_kbps, 9);
                 puts("NEORV32");
             }
         }
         puts("\n");
     }
+    puts("Load is measured over the last second.\n");
 }
 
-fn stats() {
-    switch::refresh_stats();
-    puts_styled(BOLD, "PORT    RX FRAMES   RX BYTES    TX FRAMES   TX BYTES    ERRORS\n");
-    for (port, name) in PORT_NAMES.iter().enumerate() {
+fn stats(argument: Option<&str>, traffic: &mut Traffic) {
+    match argument {
+        None => {}
+        Some(CLEAR_WORD) => {
+            traffic.clear();
+            puts_styled(GREEN, "Cleared the counters.\n");
+            return;
+        }
+        Some(other) => return unknown_argument(other),
+    }
+    header(&[
+        ("PORT", 8),
+        ("RX FRAMES", 11),
+        ("RX BCAST", 10),
+        ("RX BYTES", 12),
+        ("TX FRAMES", 11),
+        ("TX BYTES", 12),
+        ("DISCARDS", 10),
+        ("ERRORS", 0),
+    ]);
+    for (totals, name) in traffic.totals.iter().zip(PORT_NAMES) {
         puts_padded(name, 8);
-        for register in [switch::STAT_RX_FRAMES, switch::STAT_RX_BYTES, switch::STAT_TX_FRAMES, switch::STAT_TX_BYTES] {
-            put_dec_padded(switch::stat(port, register), 12);
-        }
-        // エラーの数は、上位から MAC と PHY、送信 FIFO のあふれ、受信 FIFO のあふれ、フレームの誤りの順に 8 ビットずつ並ぶ。
-        let errors: u32 = switch::stat(port, switch::STAT_ERRORS).to_be_bytes().iter().map(|&count| count as u32).sum();
-        if errors > 0 {
-            puts(YELLOW);
-        }
-        put_dec(errors);
-        puts(RESET);
+        put_dec_padded(totals.rx_frames, 11);
+        put_dec_padded(totals.rx_broadcast, 10);
+        put_dec_padded(totals.rx_bytes, 12);
+        put_dec_padded(totals.tx_frames, 11);
+        put_dec_padded(totals.tx_bytes, 12);
+        put_count(totals.discards, 10);
+        put_count(totals.errors, 0);
         puts("\n");
+    }
+    puts("Counted over ");
+    put_duration(clint::millis() - traffic.since_msec);
+    puts(". Discards are FIFO overflows; errors are MAC, PHY and frame errors.\n");
+}
+
+/// MAC アドレステーブルの全ての項目を読み、使われているものだけを出す。
+fn mac(argument: Option<&str>) {
+    match argument {
+        None => {}
+        Some(CLEAR_WORD) => {
+            switch::mac_clear();
+            puts_styled(GREEN, "Cleared the MAC address table.\n");
+            return;
+        }
+        Some(other) => return unknown_argument(other),
+    }
+    let table_size = switch::info().table_size;
+    header(&[("INDEX", 7), ("MAC ADDRESS", 19), ("PORT", 0)]);
+    let mut used: u32 = 0;
+    for index in 0..table_size {
+        if let Some((mac, port)) = switch::mac_entry(index) {
+            put_dec_padded(index, 7);
+            put_mac(&mac);
+            puts("  ");
+            puts(PORT_NAMES.get(port).copied().unwrap_or("?"));
+            puts("\n");
+            used += 1;
+        }
+    }
+    put_dec(used);
+    puts(" of ");
+    put_dec(table_size);
+    puts(" entries in use.\n");
+}
+
+fn unknown_argument(argument: &str) {
+    puts(RED);
+    puts("Unknown argument \"");
+    puts(argument);
+    puts("\".\n");
+    puts(RESET);
+}
+
+/// 経過時間を、日、時、分、秒で出す。1 日に満たなければ日を省く。
+fn put_duration(msec: u64) {
+    let seconds = msec / MSEC_PER_SEC;
+    let minutes = seconds / SEC_PER_MIN;
+    let hours = minutes / MIN_PER_HOUR;
+    let days = hours / HOUR_PER_DAY;
+    if days > 0 {
+        put_dec(days);
+        puts("d ");
+    }
+    for (value, unit) in [(hours % HOUR_PER_DAY, "h "), (minutes % MIN_PER_HOUR, "m "), (seconds % SEC_PER_MIN, "s")] {
+        if value < 10 {
+            put(b'0');
+        }
+        put_dec(value);
+        puts(unit);
     }
 }
 
@@ -170,7 +281,9 @@ fn info() {
     put_dec(info.frame_min);
     puts(" - ");
     put_dec(info.frame_max);
-    puts(" bytes\n");
+    puts(" bytes\nUptime:          ");
+    put_duration(clint::millis());
+    puts("\n");
 }
 
 fn show(state: &State) {
@@ -178,7 +291,7 @@ fn show(state: &State) {
     puts("ip       ");
     put_ip(&settings.ip);
     put(b'/');
-    put_dec(settings.prefix as u32);
+    put_dec(settings.prefix);
     puts("\ngateway  ");
     match settings.gateway {
         Some(gateway) => put_ip(&gateway),
@@ -279,7 +392,7 @@ fn put_ip(ip: &[u8; 4]) {
         if index > 0 {
             put(b'.');
         }
-        put_dec(octet as u32);
+        put_dec(octet);
     }
 }
 

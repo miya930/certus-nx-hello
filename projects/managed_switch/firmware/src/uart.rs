@@ -49,8 +49,11 @@ pub fn puts_padded(text: &str, width: usize) {
     }
 }
 
+/// u64 の最大値の桁数。
+const DECIMAL_DIGITS: usize = 20;
+
 /// 10 進の桁を、上の桁から並べて返す。
-fn decimal(mut value: u32, digits: &mut [u8; 10]) -> &[u8] {
+fn decimal(mut value: u64, digits: &mut [u8; DECIMAL_DIGITS]) -> &[u8] {
     let mut start = digits.len();
     loop {
         start -= 1;
@@ -62,17 +65,17 @@ fn decimal(mut value: u32, digits: &mut [u8; 10]) -> &[u8] {
     }
 }
 
-pub fn put_dec(value: u32) {
-    let mut digits = [0; 10];
-    for &digit in decimal(value, &mut digits) {
+pub fn put_dec(value: impl Into<u64>) {
+    let mut digits = [0; DECIMAL_DIGITS];
+    for &digit in decimal(value.into(), &mut digits) {
         put(digit);
     }
 }
 
 /// 表の列をそろえるため、数の後ろを空白で埋める。
-pub fn put_dec_padded(value: u32, width: usize) {
-    let mut digits = [0; 10];
-    let text = decimal(value, &mut digits);
+pub fn put_dec_padded(value: impl Into<u64>, width: usize) {
+    let mut digits = [0; DECIMAL_DIGITS];
+    let text = decimal(value.into(), &mut digits);
     for &digit in text {
         put(digit);
     }

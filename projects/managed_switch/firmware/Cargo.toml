@@ -15,7 +15,7 @@ default-features = false
 features = ["medium-ethernet", "proto-ipv4", "socket-icmp", "auto-icmp-echo-reply"]
 
 # cargo run は開発用のビルドを使う。
-# 命令メモリは 32 KB で、検査を入れた開発用のビルドは入りきらないため、リリースと同じ中身にする。
+# 命令メモリは 64 KB で、検査を入れた開発用のビルドは入りきらないため、リリースと同じ中身にする。
 [profile.dev]
 opt-level = "z"
 lto = true
