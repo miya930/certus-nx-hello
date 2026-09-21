@@ -3,8 +3,8 @@
 
 use crate::host::Host;
 use crate::memory_map::SWITCH_CORE;
-use crate::mt25q::Mt25q;
 use crate::settings::{self, Settings};
+use mt25q::Mt25q;
 use neorv32_hal::spi::Spi;
 
 pub struct Config {

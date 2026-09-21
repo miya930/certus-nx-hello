@@ -1,8 +1,8 @@
 //! 設定の値と、SPI Flash に保存する書式。
 
-use crate::mt25q::{self, Mt25q};
 use crate::ports::PORT_NAMES;
 use embedded_hal::spi::SpiDevice;
+use mt25q::Mt25q;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Settings {

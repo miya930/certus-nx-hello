@@ -1,9 +1,11 @@
 {
-    // リポジトリの直下には Cargo.toml がないため、rust-analyzer に読ませるファームウェアを指定する。
-    // crates/ のクレートは、ファームウェアの依存として一緒に読まれる。
+    // リポジトリの直下には Cargo.toml がないため、rust-analyzer に読ませるファームウェアと、単独で組み立てるクレートを指定する。
+    // ほかの crates/ のクレートは、ファームウェアの依存として一緒に読まれる。
     "rust-analyzer.linkedProjects": [
         "projects/managed_switch/firmware/Cargo.toml",
-        "projects/riscv_rust/firmware/Cargo.toml"
+        "projects/riscv_rust/firmware/Cargo.toml",
+        "third_party/neorv32_probe_rs/bootrom/Cargo.toml",
+        "flash_algorithms/mt25q/Cargo.toml"
     ],
     // rust-analyzer の検査と cargo run が同じビルドのフォルダを取り合わないよう、検査は別のフォルダに出す。
     "rust-analyzer.cargo.targetDir": true

@@ -5,7 +5,7 @@
 
 ## 起動 ROM
 
-`neorv32_bootrom_image.vhd` は、NEORV32 の内蔵ブートローダの代わりに起動 ROM へ置く 3 命令のプログラムである。
+`neorv32_bootrom_image.vhd` は、NEORV32 の内蔵ブートローダの代わりに起動 ROM へ置くプログラムである。
 NEORV32 の `rtl/file_list_core.f` にある同じ名前のファイルの代わりに、同じ位置で解析する。
 
 命令メモリは RAM で、初期値を持たないため、FPGA のコンフィグ直後は 0 で埋まっている。
@@ -13,9 +13,22 @@ NEORV32 の `rtl/file_list_core.f` にある同じ名前のファイルの代わ
 NEORV32 は、例外を起こした命令を 1 命令だけ進めても、デバッグモードに戻らない。
 probe-rs は接続のたびにコアを 1 命令進めるため、この状態では接続が終わらない。
 
-起動 ROM は、命令メモリの先頭が 0 のあいだは自身の中で待つ。
-JTAG から書き込まれて 0 でなくなると、命令メモリの先頭へ飛ぶ。
-そのため、ファームウェアを書き込んだあとにコアをリセットすると、ファームウェアが動き始める。
+起動 ROM は、命令メモリの先頭が 0 なら、SPI Flash の `0xF00000` にファームウェアの像があるかを見る。
+像があれば命令メモリに写し、命令メモリの先頭へ飛ぶ。
+像がないか、設計が SPI を持たなければ、命令メモリの先頭が 0 でなくなるまで自身の中で待つ。
+JTAG から書き込んだあとのリセットでは、命令メモリの先頭が 0 でないため、写さずにそのまま飛ぶ。
+
+像は、先頭の 4 バイトが `IMEM` の文字、続く 4 バイトが中身のバイト数で、その後に命令メモリの中身が続く。
+像は `tools/firmware_flash` が作り、probe-rs で Flash に書く。
+
+`neorv32_bootrom_image.vhd` は手で編集せず、同じフォルダの `bootrom` から次のように作る。
+
+```sh
+cd third_party/neorv32_probe_rs/bootrom && cargo build --release && cd ../../..
+uv run tools/bootrom_image/bootrom_image.py \
+    third_party/neorv32_probe_rs/bootrom/build/riscv32imc-unknown-none-elf/release/neorv32-bootrom \
+    third_party/neorv32_probe_rs/neorv32_bootrom_image.vhd
+```
 
 ## プロジェクトの側で必要なこと
 

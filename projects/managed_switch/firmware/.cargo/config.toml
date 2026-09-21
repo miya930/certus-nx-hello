@@ -6,9 +6,13 @@ target-dir = "../build/firmware"
 [target.riscv32imc-unknown-none-elf]
 # defmt.x は、defmt のログの書式を ELF に残す。probe-rs はそれを読んでログを復号する。
 rustflags = ["-C", "link-arg=-Tmemory.x", "-C", "link-arg=-Tlink.x", "-C", "link-arg=-Tdefmt.x"]
-# cargo run で、JTAG から命令メモリに書き込み、コアをリセットして実行させる。
-# 起動 ROM が書き込まれたファームウェアへ飛ぶため、リセットすると実行を始める。
-runner = "probe-rs run"
+# cargo run で、ファームウェアを SPI Flash に書き、続けて命令メモリにも書いてコアをリセットし、実行させる。
+# 電源を入れた直後は、起動 ROM が Flash のファームウェアを命令メモリに写して実行する。
+runner = "../../../tools/firmware_flash/firmware_flash.py"
+
+# cargo run-ram は、Flash を書き換えず、命令メモリにだけ書いて実行する。
+[alias]
+run-ram = ["run", "--config", "target.riscv32imc-unknown-none-elf.runner='probe-rs run'"]
 
 [env]
 # defmt は既定では error しか出さないため、info 以上を出す。
