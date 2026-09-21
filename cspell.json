@@ -90,6 +90,7 @@
         "prsc",
         "pullmode",
         "pycache",
+        "rcvd",
         "rdat",
         "refclk",
         "regaddr",

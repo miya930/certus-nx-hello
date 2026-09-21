@@ -27,6 +27,9 @@
 - 合成から配置配線までの手順は、プロジェクトの Makefile にまとめる。
 - 複数のプロジェクトのファームウェアで共有する Rust のクレートは、`crates/<name>/` に 1 つずつ置く。
 - NEORV32 に内蔵の周辺は `crates/neorv32-hal` を通して使い、ファームウェアからレジスタを直接読み書きしない。
+- SatCat5 の ConfigBus のデバイスのレジスタは、`crates/satcat5-pac` の型で読み書きする。
+  使うレジスタが増えたら、`crates/satcat5-pac/satcat5.svd` に書き足す。
+- ファームウェアのドライバは、ボードや FPGA の中のデバイス 1 つにつき 1 つの型にし、`firmware/src/drivers/` に置く。
 - probe-rs が Flash に書くときに NEORV32 で動かす書き込みプログラムは、`flash_algorithms/<name>/` に 1 つずつ置く。
   target-gen で取り出した項目は、各プロジェクトの `neorv32.yaml` に写す。
 - `tools/` のスクリプトは、`tools/<name>/` のフォルダに 1 つずつ置く。

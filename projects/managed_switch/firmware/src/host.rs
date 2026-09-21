@@ -2,35 +2,35 @@
 //! CPU のポートを smoltcp の Device として使う。
 //! ソケットは開かず、ARP と ICMP の echo には smoltcp が IP の層で応答する。
 
-use crate::satcat5::mailmap::MailMap;
+use crate::drivers::clock::Clock;
+use crate::drivers::switch::CpuPort;
 use crate::settings::Settings;
-use neorv32_hal::mtime::Mtime;
 use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
 pub struct Host<'a> {
-    mtime: Mtime,
-    device: MailMap,
+    clock: Clock,
+    device: CpuPort,
     iface: Interface,
     sockets: SocketSet<'a>,
 }
 
 impl<'a> Host<'a> {
     /// IP アドレスは configure で与える。
-    pub fn new(mut device: MailMap, mtime: Mtime, mac: [u8; 6], storage: &'a mut [SocketStorage<'a>]) -> Self {
+    pub fn new(mut device: CpuPort, clock: Clock, mac: [u8; 6], storage: &'a mut [SocketStorage<'a>]) -> Self {
         let config = Config::new(EthernetAddress(mac).into());
-        let iface = Interface::new(config, &mut device, Self::now(&mtime));
-        Host { mtime, device, iface, sockets: SocketSet::new(storage) }
+        let iface = Interface::new(config, &mut device, Self::now(&clock));
+        Host { clock, device, iface, sockets: SocketSet::new(storage) }
     }
 
-    fn now(mtime: &Mtime) -> Instant {
-        Instant::from_millis(mtime.millis() as i64)
+    fn now(clock: &Clock) -> Instant {
+        Instant::from_millis(clock.millis() as i64)
     }
 
     /// CPU のポートに届いたフレームを処理し、応答を送る。
     pub fn process_frames(&mut self) {
-        self.iface.poll(Self::now(&self.mtime), &mut self.device, &mut self.sockets);
+        self.iface.poll(Self::now(&self.clock), &mut self.device, &mut self.sockets);
     }
 
     /// MAC アドレス、IP アドレス、ゲートウェイを設定する。

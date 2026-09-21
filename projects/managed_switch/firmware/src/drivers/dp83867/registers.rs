@@ -1,10 +1,10 @@
 //! DP83867 のレジスタの番号とビット。
 
-pub const BMCR: u32 = 0x00;
-pub const CFG1: u32 = 0x09;
-pub const REGCR: u32 = 0x0D;
-pub const ADDAR: u32 = 0x0E;
-pub const PHYSTS: u32 = 0x11;
+pub const BMCR: u8 = 0x00;
+pub const CFG1: u8 = 0x09;
+pub const REGCR: u8 = 0x0D;
+pub const ADDAR: u8 = 0x0E;
+pub const PHYSTS: u8 = 0x11;
 
 // 拡張レジスタは MDIO で直接指せないため、番号を ADDAR に書いて指す。
 pub const RGMIICTL: u16 = 0x0032;

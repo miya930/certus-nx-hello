@@ -1,14 +1,13 @@
 //! コンソールのコマンドを解釈して実行する。
 
-use super::output::Output;
-use super::style::Style;
 use crate::config::Config;
-use crate::dp83867::Dp83867;
-use crate::memory_map::{PORT_STATS, SWITCH_CORE};
+use crate::drivers::clock::Clock;
+use crate::drivers::dp83867::Dp83867;
+use crate::drivers::switch::RMII_STATUS_LOCK;
+use crate::drivers::terminal::{Style, Terminal};
+use crate::memory_map::SWITCH;
 use crate::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
-use crate::satcat5::port_stats::RMII_STATUS_LOCK;
 use crate::traffic::Traffic;
-use neorv32_hal::mtime::Mtime;
 
 const COMMANDS: [(&str, &str); 9] = [
     ("help", "Show this list."),
@@ -37,20 +36,20 @@ const HELP_COLUMN: usize = 10;
 pub struct Commands<'a> {
     config: &'a mut Config,
     traffic: &'a mut Traffic,
-    out: &'a mut Output,
+    out: &'a mut Terminal,
     phy: Dp83867,
-    mtime: Mtime,
+    clock: Clock,
 }
 
 impl<'a> Commands<'a> {
     pub fn new(
         config: &'a mut Config,
         traffic: &'a mut Traffic,
-        out: &'a mut Output,
+        out: &'a mut Terminal,
         phy: Dp83867,
-        mtime: Mtime,
+        clock: Clock,
     ) -> Self {
-        Commands { config, traffic, out, phy, mtime }
+        Commands { config, traffic, out, phy, clock }
     }
 
     /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映は主ループが行う。
@@ -155,11 +154,11 @@ impl<'a> Commands<'a> {
                     // LAN8720 の MDIO は PMOD に出していないため、リンクは読めない。
                     // RMII のポートが報告する、REF_CLK のロックと速度を出す。
                     // REF_CLK が来ていないときの速度は意味を持たない。
-                    let (speed_mbps, status) = PORT_STATS.link(port);
-                    let locked = status & RMII_STATUS_LOCK != 0;
+                    let link = SWITCH.port_link(port);
+                    let locked = link.status & RMII_STATUS_LOCK != 0;
                     out.puts_padded("-", 6);
                     if locked {
-                        out.put_dec_padded(speed_mbps, 7);
+                        out.put_dec_padded(link.speed_mbps, 7);
                     } else {
                         out.puts_padded("-", 7);
                     }
@@ -228,18 +227,19 @@ impl<'a> Commands<'a> {
         match argument {
             None => {}
             Some(CLEAR_WORD) => {
-                SWITCH_CORE.mac_clear();
+                SWITCH.mac_clear();
                 self.out.puts_styled(Style::OK, "Cleared the MAC address table.\n");
                 return;
             }
             Some(other) => return self.error(&["Unknown argument \"", other, "\".\n"]),
         }
         let out = &mut *self.out;
-        let table_size = SWITCH_CORE.info().table_size;
+        // 項目の番号は、QUERY_CTRL の 16 ビットの欄で渡す。
+        let table_size = SWITCH.info().table_size as u16;
         out.header(&[("INDEX", 7), ("MAC ADDRESS", 19), ("PORT", 0)]);
         let mut used: u32 = 0;
         for index in 0..table_size {
-            if let Some((mac, port)) = SWITCH_CORE.mac_entry(index) {
+            if let Some((mac, port)) = SWITCH.mac_entry(index) {
                 out.put_dec_padded(index, 7);
                 out.put_mac(&mac);
                 out.puts("  ");
@@ -256,7 +256,7 @@ impl<'a> Commands<'a> {
 
     fn info(&mut self) {
         let out = &mut *self.out;
-        let info = SWITCH_CORE.info();
+        let info = SWITCH.info();
         out.puts("Ports:           ");
         out.put_dec(info.ports);
         out.puts("\nData width:      ");
@@ -270,7 +270,7 @@ impl<'a> Commands<'a> {
         out.puts(" - ");
         out.put_dec(info.frame_max);
         out.puts(" bytes\nUptime:          ");
-        out.put_duration(self.mtime.millis());
+        out.put_duration(self.clock.millis());
         out.puts("\n");
     }
 
