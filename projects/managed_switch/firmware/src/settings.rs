@@ -1,4 +1,4 @@
-//! コンソールから変える設定と、SPI Flash への保存。
+//! 設定の値と、SPI Flash に保存する書式。
 
 use crate::mt25q::{self, Mt25q};
 use crate::ports::PORT_NAMES;

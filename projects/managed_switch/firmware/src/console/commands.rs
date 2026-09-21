@@ -2,26 +2,13 @@
 
 use super::output::Output;
 use super::style::Style;
+use crate::config::Config;
 use crate::dp83867::Dp83867;
 use crate::memory_map::{PORT_STATS, SWITCH_CORE};
-use crate::mt25q::Mt25q;
 use crate::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
 use crate::satcat5::port_stats::RMII_STATUS_LOCK;
-use crate::settings::{self, Settings};
 use crate::traffic::Traffic;
-use neorv32_hal::{mtime::Mtime, spi::Spi};
-
-/// コマンドが読み書きする、スイッチの状態と部品。
-pub struct State {
-    /// 動作中の設定。
-    pub settings: Settings,
-    /// Flash に保存してある設定。保存したことがなければ None になる。
-    pub saved: Option<Settings>,
-    pub traffic: Traffic,
-    pub flash: Mt25q<Spi>,
-    pub phy: Dp83867,
-    pub mtime: Mtime,
-}
+use neorv32_hal::mtime::Mtime;
 
 const COMMANDS: [(&str, &str); 9] = [
     ("help", "Show this list."),
@@ -46,18 +33,27 @@ const NONE_WORD: &str = "none";
 const CLEAR_WORD: &str = "clear";
 const HELP_COLUMN: usize = 10;
 
-/// 1 行のコマンドを実行する間だけ、状態と出力を借りる。
+/// 1 行のコマンドを実行する間だけ、設定、統計、出力を借りる。
 pub struct Commands<'a> {
-    state: &'a mut State,
+    config: &'a mut Config,
+    traffic: &'a mut Traffic,
     out: &'a mut Output,
+    phy: Dp83867,
+    mtime: Mtime,
 }
 
 impl<'a> Commands<'a> {
-    pub fn new(state: &'a mut State, out: &'a mut Output) -> Self {
-        Commands { state, out }
+    pub fn new(config: &'a mut Config, traffic: &'a mut Traffic, out: &'a mut Output, phy: Dp83867, mtime: Mtime) -> Self {
+        Commands {
+            config,
+            traffic,
+            out,
+            phy,
+            mtime,
+        }
     }
 
-    /// 行を実行する。設定を変えるコマンドは状態の設定を書き換えるだけで、動作への反映は呼び出し側が行う。
+    /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映は主ループが行う。
     pub fn execute(&mut self, line: &str) {
         let mut words = line.split_ascii_whitespace();
         let Some(command) = words.next() else {
@@ -72,13 +68,12 @@ impl<'a> Commands<'a> {
             "show" => self.show(),
             "set" => self.set(words.next(), words.next()),
             "save" => {
-                let Ok(()) = self.state.settings.save(&mut self.state.flash);
-                self.state.saved = Some(self.state.settings);
+                self.config.save();
                 defmt::info!("Saved the settings to the SPI Flash");
                 self.out.puts_styled(Style::OK, "Saved.\n");
             }
             "defaults" => {
-                self.state.settings = settings::DEFAULT;
+                self.config.restore_defaults();
                 self.out.puts_styled(Style::WARNING, "Restored the defaults. Use \"save\" to keep them.\n");
             }
             _ => self.error(&["Unknown command \"", command, "\". Type \"help\" for the list.\n"]),
@@ -132,11 +127,11 @@ impl<'a> Commands<'a> {
         out.header(&[("PORT", 8), ("LINK", 6), ("SPEED", 7), ("DUPLEX", 8), ("RX KBPS", 9), ("TX KBPS", 9), ("NOTE", 0)]);
         for (port, name) in PORT_NAMES.iter().enumerate() {
             out.puts_padded(name, 8);
-            let (rx_kbps, tx_kbps) = self.state.traffic.rate_kbps(port);
+            let (rx_kbps, tx_kbps) = self.traffic.rate_kbps(port);
             match port {
                 PORT_RGMII => {
                     // RGMII の相手は DP83867 なので、PHY のレジスタからリンクを読む。
-                    let phy = self.state.phy.status();
+                    let phy = self.phy.status();
                     if phy.link {
                         out.puts_styled_padded(Style::OK, "up", 6);
                     } else {
@@ -187,7 +182,7 @@ impl<'a> Commands<'a> {
         match argument {
             None => {}
             Some(CLEAR_WORD) => {
-                self.state.traffic.clear();
+                self.traffic.clear();
                 self.out.puts_styled(Style::OK, "Cleared the counters.\n");
                 return;
             }
@@ -203,7 +198,7 @@ impl<'a> Commands<'a> {
             ("DISCARDS", 10),
             ("ERRORS", 0),
         ]);
-        let totals = self.state.traffic.totals;
+        let totals = self.traffic.totals;
         for (totals, name) in totals.iter().zip(PORT_NAMES) {
             self.out.puts_padded(name, 8);
             self.out.put_dec_padded(totals.rx_frames, 11);
@@ -216,7 +211,7 @@ impl<'a> Commands<'a> {
             self.out.puts("\n");
         }
         self.out.puts("Counted over ");
-        self.out.put_duration(self.state.traffic.counted_msec());
+        self.out.put_duration(self.traffic.counted_msec());
         self.out.puts(". Discards are FIFO overflows; errors are MAC, PHY and frame errors.\n");
     }
 
@@ -267,13 +262,13 @@ impl<'a> Commands<'a> {
         out.puts(" - ");
         out.put_dec(info.frame_max);
         out.puts(" bytes\nUptime:          ");
-        out.put_duration(self.state.mtime.millis());
+        out.put_duration(self.mtime.millis());
         out.puts("\n");
     }
 
     fn show(&mut self) {
         let out = &mut *self.out;
-        let settings = &self.state.settings;
+        let settings = self.config.current();
         out.puts("ip       ");
         out.put_ip(&settings.ip);
         out.put(b'/');
@@ -288,9 +283,9 @@ impl<'a> Commands<'a> {
         out.puts("\nmirror   ");
         out.puts(settings.mirror.map_or(NONE_WORD, |port| PORT_NAMES[port as usize]));
         out.puts("\n");
-        match self.state.saved {
+        match self.config.saved() {
             None => out.puts_styled(Style::WARNING, "No saved settings. Use \"save\" to keep these.\n"),
-            Some(saved) if saved != *settings => {
+            Some(saved) if saved != settings => {
                 out.puts_styled(Style::WARNING, "The settings differ from the saved ones. Use \"save\" to keep them.\n")
             }
             Some(_) => {}
@@ -307,7 +302,7 @@ impl<'a> Commands<'a> {
             }
             return;
         };
-        let settings = &mut self.state.settings;
+        let settings = self.config.current_mut();
         let accepted = match item {
             "ip" => Self::parse_cidr(value).map(|(ip, prefix)| {
                 settings.ip = ip;
