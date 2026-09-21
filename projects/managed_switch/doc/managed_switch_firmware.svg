@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" width="1100" height="700" role="img" aria-label="ファームウェアの層の図。main.rs がアプリを周期ごとに呼び、アプリはデバイスごとのドライバを使う。ドライバは neorv32-hal と neorv32-pac、または satcat5-pac を通してレジスタを読み書きする。Switch は SatCat5 の 4 つの ConfigBus のデバイスを 1 つのスイッチングハブとして扱い、Dp83867 は Switch の MDIO を通して PHY を読み書きする。">
+<defs><marker id="fw-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path fill="#5b676d" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect x="0" y="0" width="1100" height="700" fill="#ffffff"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="16" y="46">主ループ</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="16" y="126">アプリ</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="16" y="300">ドライバ</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="10" x="16" y="316">drivers/</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="16" y="450">レジスタ操作</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="16" y="604">ハードウェア</text>
+<rect fill="#ffffff" stroke="#1c2428" stroke-width="1.4" x="140" y="20" width="936" height="56" rx="6"/>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="13" font-weight="bold" x="156" y="43">main.rs</text>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" x="236" y="43">ドライバとアプリを作り、主ループで左のアプリから順に呼ぶ。周期は Clock の Ticker で決める。</text>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" x="236" y="63">LED は main が直接更新する。受け取ったフレームの数は毎回、点滅とリンクは 500 ms ごとに出す。</text>
+<rect fill="#fbeadb" stroke="#c67c3f" stroke-width="1.4" x="140" y="96" width="178" height="148" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="152" y="122">Host</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="254" y="107" width="52" height="20" rx="10"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="280" y="121" text-anchor="middle">毎回</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="152" y="141">host.rs · smoltcp</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="152" y="164">スイッチ自身の IP で</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="152" y="181">ARP と ping に応答する</text>
+<line stroke="#c5cdcf" stroke-width="1" x1="152" y1="196" x2="306" y2="196"/>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="152" y="214">→</text>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="166" y="214">Switch · Clock</text>
+<rect fill="#fbeadb" stroke="#c67c3f" stroke-width="1.4" x="329.5" y="96" width="178" height="148" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="341.5" y="122">Console</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="443.5" y="107" width="52" height="20" rx="10"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="469.5" y="121" text-anchor="middle">毎回</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="341.5" y="141">console/</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="341.5" y="164">端末の行を編集し、</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="341.5" y="181">コマンドを実行する</text>
+<line stroke="#c5cdcf" stroke-width="1" x1="341.5" y1="196" x2="495.5" y2="196"/>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="341.5" y="214">→</text>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="355.5" y="214">Terminal · Dp83867</text>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="355.5" y="230">Switch · Clock</text>
+<rect fill="#fbeadb" stroke="#c67c3f" stroke-width="1.4" x="519" y="96" width="178" height="148" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="531" y="122">Config</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="633" y="107" width="52" height="20" rx="10"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="659" y="121" text-anchor="middle">毎回</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="531" y="141">config.rs · settings.rs</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="531" y="164">設定を持ち、変わったら</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="531" y="181">スイッチと Host に反映</text>
+<line stroke="#c5cdcf" stroke-width="1" x1="531" y1="196" x2="685" y2="196"/>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="531" y="214">→</text>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="545" y="214">Mt25q · Switch</text>
+<rect fill="#fbeadb" stroke="#c67c3f" stroke-width="1.4" x="708.5" y="96" width="178" height="148" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="720.5" y="122">Traffic</text>
+<rect fill="#ffffff" stroke="#c67c3f" stroke-width="1.6" x="822.5" y="107" width="52" height="20" rx="10"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" font-weight="bold" x="848.5" y="121" text-anchor="middle">1 秒</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="720.5" y="141">traffic.rs</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="720.5" y="164">ポートの統計を取り込み、</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="720.5" y="181">累計と速さを保つ</text>
+<line stroke="#c5cdcf" stroke-width="1" x1="720.5" y1="196" x2="874.5" y2="196"/>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="720.5" y="214">→</text>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="734.5" y="214">Switch · Clock</text>
+<rect fill="#fbeadb" stroke="#c67c3f" stroke-width="1.4" x="898" y="96" width="178" height="148" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="910" y="122">Links</text>
+<rect fill="#ffffff" stroke="#c67c3f" stroke-width="1.6" x="1012" y="107" width="52" height="20" rx="10"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" font-weight="bold" x="1038" y="121" text-anchor="middle">500 ms</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="910" y="141">links.rs</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="910" y="164">リンクの変化を見て、</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="910" y="181">MAC テーブルを消す</text>
+<line stroke="#c5cdcf" stroke-width="1" x1="910" y1="196" x2="1064" y2="196"/>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="910" y="214">→</text>
+<text fill="#1c2428" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="924" y="214">Dp83867 · Switch</text>
+<rect fill="#e0f0e6" stroke="#3d8a60" stroke-width="1.4" x="140" y="272" width="116" height="124" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="198" y="300" text-anchor="middle">Terminal</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="198" y="319" text-anchor="middle">terminal/</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="198" y="346" text-anchor="middle">UART0 の端末</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="198" y="363" text-anchor="middle">書式と文字の色</text>
+<rect fill="#e0f0e6" stroke="#3d8a60" stroke-width="1.4" x="268" y="272" width="88" height="124" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="312" y="300" text-anchor="middle">Leds</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="312" y="319" text-anchor="middle">leds.rs</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="312" y="346" text-anchor="middle">8 個の LED</text>
+<rect fill="#e0f0e6" stroke="#3d8a60" stroke-width="1.4" x="368" y="272" width="88" height="124" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="412" y="300" text-anchor="middle">Clock</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="412" y="319" text-anchor="middle">clock.rs</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="412" y="346" text-anchor="middle">時刻と Ticker</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="412" y="363" text-anchor="middle">DelayNs</text>
+<rect fill="#e0f0e6" stroke="#3d8a60" stroke-width="1.4" x="468" y="272" width="116" height="124" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="526" y="300" text-anchor="middle">Mt25q</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="526" y="319" text-anchor="middle">crates/mt25q</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="526" y="346" text-anchor="middle">SPI Flash を</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="526" y="363" text-anchor="middle">読む・消す・書く</text>
+<rect fill="#e0f0e6" stroke="#3d8a60" stroke-width="1.4" x="596" y="272" width="108" height="124" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="650" y="300" text-anchor="middle">Dp83867</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="650" y="319" text-anchor="middle">dp83867/</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="650" y="346" text-anchor="middle">PHY の設定と</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="650" y="363" text-anchor="middle">リンクの状態</text>
+<rect fill="#e0f0e6" stroke="#3d8a60" stroke-width="1.4" x="724" y="272" width="352" height="124" rx="6"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="15" font-weight="bold" x="738" y="298">Switch</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="800" y="298">switch/</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="1062" y="298" text-anchor="end">SatCat5 のスイッチングハブ</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="738" y="318">ConfigBus の 4 つのデバイスを、1 つのスイッチとして扱う</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="731" y="330" width="80" height="54" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="771" y="352" text-anchor="middle">MDIO</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="771" y="371" text-anchor="middle">PHY を読み書き</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="817" y="330" width="80" height="54" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="857" y="352" text-anchor="middle">MAC テーブル</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="857" y="371" text-anchor="middle">読む・消す</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="903" y="330" width="80" height="54" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="943" y="352" text-anchor="middle">CPU のポート</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="943" y="371" text-anchor="middle">smoltcp に渡す</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="989" y="330" width="80" height="54" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="1029" y="352" text-anchor="middle">統計</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="1029" y="371" text-anchor="middle">数とリンク</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="704" y1="357" x2="729" y2="357" marker-end="url(#fw-head)"/>
+<rect fill="#e2eaf6" stroke="#4a6fa5" stroke-width="1.4" x="140" y="424" width="444" height="72" rx="6"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="146" y="432" width="104" height="38" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="198" y="449" text-anchor="middle">Uart</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="198" y="463" text-anchor="middle">UartTx · UartRx</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="274" y="432" width="76" height="38" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="312" y="455" text-anchor="middle">Gpio</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="374" y="432" width="76" height="38" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="412" y="449" text-anchor="middle">Mtime</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="412" y="463" text-anchor="middle">DelayNs</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="474" y="432" width="104" height="38" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="526" y="449" text-anchor="middle">Spi</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="526" y="463" text-anchor="middle">SpiDevice</text>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="152" y="487">crates/neorv32-hal</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="290" y="487">embedded-hal と embedded-io の trait を実装する</text>
+<rect fill="#e2eaf6" stroke="#4a6fa5" stroke-width="1.4" x="140" y="504" width="444" height="40" rx="6"/>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="152" y="529">crates/neorv32-pac</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="290" y="529">NEORV32 の SVD から svd2rust で生成したレジスタの型</text>
+<rect fill="#e2eaf6" stroke="#4a6fa5" stroke-width="1.4" x="724" y="504" width="352" height="40" rx="6"/>
+<text fill="#5b676d" font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="11" x="736" y="529">crates/satcat5-pac</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="874" y="529">SatCat5 の SVD から同じく生成</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="198" y1="396" x2="198" y2="430" marker-end="url(#fw-head)"/>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="312" y1="396" x2="312" y2="430" marker-end="url(#fw-head)"/>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="412" y1="396" x2="412" y2="430" marker-end="url(#fw-head)"/>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="526" y1="396" x2="526" y2="430" marker-end="url(#fw-head)"/>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="900" y1="396" x2="900" y2="502" marker-end="url(#fw-head)"/>
+<rect fill="#ebe8e3" stroke="#867c70" stroke-width="1.4" x="140" y="568" width="444" height="108" rx="6"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="146" y="578" width="104" height="56" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="198" y="601" text-anchor="middle">UART0</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="198" y="620" text-anchor="middle">FT2232H の Port B</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="198" y1="544" x2="198" y2="576" marker-end="url(#fw-head)"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="274" y="578" width="76" height="56" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="312" y="601" text-anchor="middle">GPIO</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="312" y="620" text-anchor="middle">LED</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="312" y1="544" x2="312" y2="576" marker-end="url(#fw-head)"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="374" y="578" width="76" height="56" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="412" y="601" text-anchor="middle">CLINT</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="412" y="620" text-anchor="middle">マシンタイマ</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="412" y1="544" x2="412" y2="576" marker-end="url(#fw-head)"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="474" y="578" width="104" height="56" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="526" y="601" text-anchor="middle">SPI</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="526" y="620" text-anchor="middle">MT25QU128</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="526" y1="544" x2="526" y2="576" marker-end="url(#fw-head)"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="152" y="660">NEORV32 に内蔵の周辺</text>
+<rect fill="#ebe8e3" stroke="#867c70" stroke-width="1.4" x="724" y="568" width="352" height="108" rx="6"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="731" y="578" width="80" height="56" rx="4"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="771" y="602" text-anchor="middle">cfgbus_mdio</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="771" y="625" text-anchor="middle">DEV_MDIO</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="817" y="578" width="80" height="56" rx="4"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="857" y="602" text-anchor="middle">switch_core</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="857" y="625" text-anchor="middle">DEV_SWITCH</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="903" y="578" width="80" height="56" rx="4"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="943" y="602" text-anchor="middle">port_mailmap</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="943" y="625" text-anchor="middle">DEV_MAILMAP</text>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="989" y="578" width="80" height="56" rx="4"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="1029" y="596" text-anchor="middle">cfgbus_</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="1029" y="609" text-anchor="middle">port_stats</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="1029" y="625" text-anchor="middle">DEV_STATS</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="11" x="736" y="660">SatCat5。外部バスから ConfigBus として 0x90000000 に見える</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="900" y1="544" x2="900" y2="566" marker-end="url(#fw-head)"/>
+<rect fill="#ffffff" stroke="#9aa6ab" stroke-width="1" x="598" y="578" width="90" height="56" rx="4"/>
+<text fill="#1c2428" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="12" font-weight="bold" x="643" y="601" text-anchor="middle">DP83867</text>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="643" y="620" text-anchor="middle">ボードの PHY</text>
+<line stroke="#5b676d" stroke-width="1.4" fill="none" x1="731" y1="606" x2="690" y2="606" marker-end="url(#fw-head)"/>
+<text fill="#5b676d" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="10" x="709.5" y="600" text-anchor="middle">MDIO</text>
+</svg>
