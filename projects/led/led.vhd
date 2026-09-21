@@ -2,7 +2,7 @@ library ieee;
 use     ieee.numeric_std.all;
 use     ieee.std_logic_1164.all;
 
-entity led_sequence is
+entity led is
     generic (
     CLK_HZ      : positive := 25_000_000;
     STEP_MSEC   : positive := 100);
@@ -10,9 +10,9 @@ entity led_sequence is
     system_25m_clk  : in  std_logic;
     pushbutton3     : in  std_logic;
     led             : out std_logic_vector(7 downto 0));
-end led_sequence;
+end led;
 
-architecture rtl of led_sequence is
+architecture rtl of led is
 
 constant STEP_CYCLES    : positive := CLK_HZ / 1000 * STEP_MSEC;
 

@@ -1,5 +1,5 @@
 [package]
-name = "ip_endpoint_firmware"
+name = "managed_switch_firmware"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,7 +11,8 @@ panic-halt = "1.0"
 version = "0.14"
 default-features = false
 # ソケットを 1 つも有効にしないと smoltcp の Socket 列挙が空になり、組み上がらない。
-features = ["medium-ethernet", "proto-ipv4", "socket-icmp"]
+# ICMP の echo への自動応答は auto-icmp-echo-reply で囲まれており、無いと要求が捨てられる。
+features = ["medium-ethernet", "proto-ipv4", "socket-icmp", "auto-icmp-echo-reply"]
 
 # 命令メモリが限られるため、速度より大きさを優先する。
 [profile.release]

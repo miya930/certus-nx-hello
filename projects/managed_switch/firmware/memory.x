@@ -1,4 +1,4 @@
-/* 位置と大きさは ip_endpoint.vhd の generic に合わせる。 */
+/* 位置と大きさは managed_switch.vhd の generic に合わせる。 */
 MEMORY
 {
   IMEM : ORIGIN = 0x00000000, LENGTH = 32K

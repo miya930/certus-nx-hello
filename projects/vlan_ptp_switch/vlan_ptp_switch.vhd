@@ -5,7 +5,7 @@ use     work.common_primitives.all;
 use     work.ptp_types.all;
 use     work.switch_types.all;
 
-entity rmii_switch is
+entity vlan_ptp_switch is
     generic (
     PORT_COUNT  : positive := 4);
     port (
@@ -16,9 +16,9 @@ entity rmii_switch is
     rmii_ref_clk    : in  std_logic;
     system_25m_clk  : in  std_logic;
     reset_p         : in  std_logic);
-end rmii_switch;
+end vlan_ptp_switch;
 
-architecture rtl of rmii_switch is
+architecture rtl of vlan_ptp_switch is
 
 -- 全ポートが PHY からの 50 MHz の REF_CLK を共有し、スイッチコアも同じクロックで動かす。
 -- 1 バイト幅のパイプラインなので、全ポート合計で 400 Mbps まで処理できる。

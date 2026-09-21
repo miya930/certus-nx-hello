@@ -38,7 +38,7 @@
 - SatCat5 は VHDL で書かれているため、ghdl-yosys-plugin を使って yosys に読み込む。
 - 配置配線は nextpnr-nexus、ビットストリーム生成は prjoxide を使う。
 - 書き込みは openFPGALoader を使い、ボード指定は `certusnx_versa_evn` とする。
-- 新しいプロジェクトの Makefile は `projects/rmii_switch/Makefile` を元に作る。
+- 新しいプロジェクトの Makefile は `projects/vlan_ptp_switch/Makefile` を元に作る。
   GHDL と nextpnr-nexus で必要になる対処が入っている。
 
 ```sh

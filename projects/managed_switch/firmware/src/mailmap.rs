@@ -17,7 +17,7 @@ const REG_TX_DATA: usize = 512;
 const REG_TX_CTRL: usize = 1023;
 
 /// 受信と送信それぞれに割り当てられたレジスタの数から決まる上限。
-const MTU: usize = 1500;
+const MTU: usize = 1514;
 const BUFFER_BYTES: usize = 1600;
 
 /// ConfigBus を Wishbone 経由でつないでいるため、バイト単位の書き込みができない。
@@ -119,6 +119,8 @@ pub struct TxToken<'a> {
 impl<'a> phy::TxToken for TxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
         let result = f(&mut self.buffer[..length]);
+        // 送信中はバッファへの書き込みが無視されるため、空くまで待つ。
+        while read_reg(REG_TX_CTRL) != 0 {}
         // TxToken は送信バッファだけを借りているため、ここでレジスタへ直接書き出す。
         for offset in (0..length).step_by(4) {
             let mut word = [0u8; 4];
