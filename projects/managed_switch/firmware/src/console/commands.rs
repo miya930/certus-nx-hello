@@ -74,6 +74,7 @@ impl<'a> Commands<'a> {
             "save" => {
                 let Ok(()) = self.state.settings.save(&mut self.state.flash);
                 self.state.saved = Some(self.state.settings);
+                defmt::info!("Saved the settings to the SPI Flash");
                 self.out.puts_styled(Style::OK, "Saved.\n");
             }
             "defaults" => {

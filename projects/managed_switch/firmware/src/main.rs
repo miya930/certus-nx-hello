@@ -10,17 +10,19 @@ mod satcat5;
 mod settings;
 mod traffic;
 
+use defmt_rtt as _;
 use neorv32_hal::{gpio::Gpio, mtime::Mtime, pac, spi::Spi, uart::Uart};
-use panic_halt as _;
 use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
 use console::{commands::State, Console, Style};
 use dp83867::Dp83867;
-use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
+use memory_map::{MAILMAP, MDIO, PORT_STATS, SWITCH_CORE};
 use mt25q::Mt25q;
+use ports::PORT_RMII;
 use satcat5::mailmap::MailMap;
+use satcat5::port_stats::RMII_STATUS_LOCK;
 use settings::Settings;
 use traffic::Traffic;
 
@@ -48,6 +50,14 @@ const LED_RX_MASK: u32 = 0x3F;
 /// リンクは MDIO で読むため、読む間隔をあけて通信の処理を妨げないようにする。
 const LINK_POLL_MSEC: u64 = 500;
 
+/// パニックしたことを defmt で送ってから止まる。
+/// 場所を読むと、パニックのメッセージの整形に使う core::fmt が残り、命令メモリが約 20 KB 増えるため、読まない。
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    defmt::error!("panicked");
+    loop {}
+}
+
 fn now(mtime: &Mtime) -> Instant {
     Instant::from_millis(mtime.millis() as i64)
 }
@@ -55,6 +65,8 @@ fn now(mtime: &Mtime) -> Instant {
 /// 設定を smoltcp とスイッチコアに反映する。
 /// ミラーリングは、指定した 1 つのポートだけをプロミスキャスにして実現する。
 fn apply(settings: &Settings, iface: &mut Interface) {
+    let [a, b, c, d] = settings.ip;
+    defmt::info!("IP address {=u8}.{=u8}.{=u8}.{=u8}/{=u8}", a, b, c, d, settings.prefix);
     iface.set_hardware_addr(EthernetAddress(settings.mac).into());
     iface.update_ip_addrs(|addrs| {
         addrs.clear();
@@ -86,7 +98,10 @@ fn main() -> ! {
     let phy = Dp83867::new(MDIO, DP83867_PHY_ADDR);
 
     let saved = Settings::load(&mut flash);
-    if saved.is_none() {
+    if saved.is_some() {
+        defmt::info!("Loaded the settings from the SPI Flash");
+    } else {
+        defmt::warn!("No saved settings in the SPI Flash, using the defaults");
         console.output().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
     }
     let mut state = State {
@@ -114,6 +129,8 @@ fn main() -> ! {
 
     let mut leds = 0;
     let mut next_poll = 0;
+    let mut link = false;
+    let mut rmii_locked = false;
 
     loop {
         iface.poll(now(&mtime), &mut device, &mut sockets);
@@ -131,8 +148,30 @@ fn main() -> ! {
             next_poll = millis + LINK_POLL_MSEC;
             leds ^= LED_HEARTBEAT;
             leds &= !LED_LINK;
-            if phy.status().link {
+            let status = phy.status();
+            if status.link != link {
+                link = status.link;
+                if link {
+                    defmt::info!(
+                        "DP83867 link up, {=u32} Mbps, full duplex {=bool}",
+                        status.speed_mbps,
+                        status.full_duplex
+                    );
+                } else {
+                    defmt::info!("DP83867 link down");
+                }
+            }
+            if link {
                 leds |= LED_LINK;
+            }
+            let locked = PORT_STATS.link(PORT_RMII).1 & RMII_STATUS_LOCK != 0;
+            if locked != rmii_locked {
+                rmii_locked = locked;
+                if locked {
+                    defmt::info!("RMII REF_CLK locked");
+                } else {
+                    defmt::warn!("RMII REF_CLK lost");
+                }
             }
         }
         let rx = (device.rx_count & LED_RX_MASK) << LED_RX_SHIFT;
