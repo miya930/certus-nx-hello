@@ -177,14 +177,17 @@ impl<'a> Commands<'a> {
             match port {
                 PORT_RGMII => {
                     // RGMII の相手は DP83867 なので、PHY のレジスタからリンクを読む。
+                    // リンクしていないときの速度と二重は意味を持たない。
                     let phy = self.phy.status();
                     if phy.link {
                         out.puts_styled_padded(Style::OK, "up", 6);
+                        out.put_dec_padded(phy.speed_mbps, 7);
+                        out.puts_padded(if phy.full_duplex { "full" } else { "half" }, 8);
                     } else {
                         out.puts_styled_padded(Style::ERROR, "down", 6);
+                        out.puts_padded("-", 7);
+                        out.puts_padded("-", 8);
                     }
-                    out.put_dec_padded(phy.speed_mbps, 7);
-                    out.puts_padded(if phy.full_duplex { "full" } else { "half" }, 8);
                     out.put_dec_padded(rx_kbps, 9);
                     out.put_dec_padded(tx_kbps, 9);
                     out.puts("DP83867");
