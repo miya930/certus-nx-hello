@@ -9,7 +9,7 @@ PC から `ping` を送ると、コアで動く Rust の smoltcp が応答する
 ![managed_switch の内部構成](doc/managed_switch_block.drawio.svg)
 
 スイッチのポートは 3 つある。
-ボードの DP83867 には RGMII で、PMOD の J5 につないだ LAN8720 のモジュールには RMII でつながる。
+ボードの DP83867 には RGMII で、PMOD の J6 につないだ LAN8720 のモジュールには RMII でつながる。
 残りの 1 つは、CPU につながる `port_mailmap` である。
 `port_mailmap` はフレーム全体をメモリとして見せるため、CPU はフレームを配列として読み書きできる。
 
@@ -77,7 +77,7 @@ LFD2NX-40-8BG256C で配置配線した結果を次に示す。
 | 分散 RAM | 91 | 4,032 |
 | I/O | 35 | 111 |
 
-タイミングの余裕が一番少ないのは RGMII の送信側で、125 MHz に対して 134.6 MHz である。
+タイミングの余裕が一番少ないのは RGMII の送信側で、125 MHz に対して 159.1 MHz である。
 スイッチコアの出力バッファを 8 KB にすると、ここが 112 MHz に落ちるため、2 KB にしている。
 
 nextpnr-nexus は、設計全体に 1 つの目標周波数しか与えられない。
@@ -105,10 +105,11 @@ make upload # ファームウェアを UART から流し込んで実行する
 
 `make upload` のシリアルポートは、`make upload PORT=/dev/ttyUSB0` のように変えられる。
 
-LAN8720 のモジュールは、PMOD の J5 に次のようにつなぐ。
-モジュールの電源は、J5 の 3.3 V と GND から取る。
+LAN8720 のモジュールは、PMOD の J6 に次のようにつなぐ。
+J5 は、NEORV32 の JTAG のために空けておく。
+モジュールの電源は、J6 の 3.3 V と GND から取る。
 
-| J5 のピン | 信号 |
+| J6 のピン | 信号 |
 |---|---|
 | 1 | REF_CLK |
 | 2 | CRS_DV |
