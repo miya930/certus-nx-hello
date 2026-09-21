@@ -2,7 +2,7 @@
 #![no_main]
 
 use core::ptr::{read_volatile, write_volatile};
-use panic_halt as _;
+use defmt_rtt as _;
 
 // NEORV32 のメモリマップ。
 const GPIO_PORT_OUT: *mut u32 = 0xFFFC_0004 as *mut u32;
@@ -56,15 +56,27 @@ fn wait_msec(msec: u32) {
     while unsafe { read_volatile(CLINT_MTIME) }.wrapping_sub(start) < ticks {}
 }
 
+/// パニックした場所を defmt で送ってから止まる。
+/// メッセージの整形には core::fmt が要り、16 KB の命令メモリを圧迫するため、場所だけを送る。
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    if let Some(location) = info.location() {
+        defmt::error!("panicked at {=str}:{=u32}", location.file(), location.line());
+    }
+    loop {}
+}
+
 #[riscv_rt::entry]
 fn main() -> ! {
     uart_init();
     uart_puts("\nHello from Rust on NEORV32.\n");
     uart_puts("Counting up on the LEDs.\n");
+    defmt::info!("Counting up on the LEDs every {=u32} ms.", STEP_MSEC);
 
     let mut value: u32 = 0;
     loop {
         unsafe { write_volatile(GPIO_PORT_OUT, value) };
+        defmt::debug!("LED {=u32:08b}", value & 0xFF);
         wait_msec(STEP_MSEC);
         value = value.wrapping_add(1);
     }
