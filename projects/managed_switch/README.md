@@ -82,7 +82,7 @@ ConfigBus のアドレスは、ビット 19 から 12 がデバイス番号、�
 | 3 `cfgbus_mdio` | 0 | 読み書き | 書くと MDIO の操作を積み、読むと結果を取り出す | PHY の設定、`status`、LED |
 
 統計のポートの番号は、0 が RGMII、1 が RMII、2 が CPU である。
-MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/dp83867.rs` にある。
+MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/dp83867/` にある。
 各レジスタの全体の定義は、SatCat5 の次のファイルの先頭のコメントにある。
 
 - `switch_core`: `third_party/satcat5/src/vhdl/common/switch_types.vhd` のうち、ConfigBus のレジスタの一覧
@@ -166,7 +166,7 @@ RGMII のクロックのずれも同じ MDIO の書き込みで PHY に作らせ
 
 PHY のリセットの解除から MDIO を使えるまでの待ちは、FPGA の回路が数える。
 待ちが終わると GPIO の入力の最下位が 1 になり、ファームウェアはそれを見てから MDIO で PHY を設定する。
-書き込むレジスタと値は、`firmware/src/dp83867.rs` にある。
+書き込むレジスタと値は、`firmware/src/dp83867/` にある。
 
 MDIO のデータ線は双方向で、SatCat5 の `cfgbus_mdio` は下の階層で 3 状態の出力を作る。
 GHDL で合成すると、下の階層を通る双方向のポートはトップのポートとのつながりが切れる。
@@ -257,6 +257,20 @@ SPI のクロックは約 98 kHz にする。
 ARP と ICMP の echo には smoltcp が応答するため、ソケットは開かない。
 主ループは、通信の処理とコンソールの入力を交互に行い、500 ms ごとに PHY のリンクを読んで LED に出す。
 
+`firmware/src/` は、役割ごとに次のように分ける。
+
+| 場所 | 役割 |
+|---|---|
+| `main.rs` | 起動と主ループ |
+| `memory_map.rs` | ConfigBus のデバイスの番地 |
+| `ports.rs` | スイッチのポートの番号と名前 |
+| `settings.rs` | 設定と、Flash に保存する書式 |
+| `traffic.rs` | ポートごとの送受信の速さと累計 |
+| `console/` | コンソールの端末の入出力、文字の色、行の編集、コマンド |
+| `satcat5/` | SatCat5 の ConfigBus のデバイス |
+| `dp83867/` | ボードの Ethernet PHY の DP83867 |
+| `mt25q/` | ボードの SPI Flash の MT25QU128 |
+
 レジスタを直接読み書きするのは、次の層だけにする。
 上の層は、これらの型を通して周辺を使う。
 
@@ -264,8 +278,8 @@ ARP と ICMP の echo には smoltcp が応答するため、ソケットは開�
 - SatCat5 の ConfigBus のデバイスは、`firmware/src/satcat5/` の型を通して使う。
 - 各デバイスの番地は、`firmware/src/memory_map.rs` だけに書く。
 
-DP83867 の設定は `firmware/src/dp83867.rs` が MDIO の型を通して行う。
-Flash の MT25QU128 は `firmware/src/mt25q.rs` が embedded-hal の `SpiDevice` を通して読み書きする。
+`dp83867/` と `mt25q/` では、型とその操作を `mod.rs` に置き、レジスタや命令の番号を別のファイルに分ける。
+DP83867 は MDIO の型を通して、MT25QU128 は embedded-hal の `SpiDevice` を通して読み書きする。
 
 `cargo run` で JTAG から書き込むための対処は、`projects/riscv_rust/README.md` にまとめてある。
 このプロジェクトでは、それに加えて次の 2 つをした。

@@ -23,11 +23,9 @@ pub const DEFAULT: Settings = Settings {
     mirror: None,
 };
 
-/// ボードの Flash は 128 Mbit で、FPGA のビットストリームは先頭から置かれる。
-/// 設定は、ビットストリームと重ならない最後の 4 KB の区画に置く。
-const FLASH_BYTES: u32 = 128 * 1024 * 1024 / 8;
-const SUBSECTOR_BYTES: u32 = 4 * 1024;
-const OFFSET: u32 = FLASH_BYTES - SUBSECTOR_BYTES;
+/// FPGA のビットストリームは Flash の先頭から置かれる。
+/// 設定は、ビットストリームと重ならない最後の区画に置く。
+const OFFSET: u32 = mt25q::CAPACITY_BYTES - mt25q::SUBSECTOR_BYTES;
 
 /// 書式を変えたときは末尾の番号を上げ、古い書式を読まないようにする。
 const MAGIC: [u8; 4] = *b"MSW1";

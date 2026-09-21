@@ -1,13 +1,13 @@
 //! コンソールのコマンドを解釈して実行する。
 
-use crate::dp83867;
-use crate::memory_map::{MDIO, PORT_STATS, SWITCH_CORE};
+use super::sgr::{puts_styled, puts_styled_padded, BOLD, GREEN, RED, RESET, YELLOW};
+use super::term::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
+use crate::dp83867::Dp83867;
+use crate::memory_map::{PORT_STATS, SWITCH_CORE};
 use crate::mt25q::Mt25q;
 use crate::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
 use crate::satcat5::port_stats::RMII_STATUS_LOCK;
 use crate::settings::{self, Settings};
-use crate::sgr::{puts_styled, puts_styled_padded, BOLD, GREEN, RED, RESET, YELLOW};
-use crate::term::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
 use crate::traffic::Traffic;
 use neorv32_hal::{mtime::Mtime, spi::Spi};
 
@@ -18,6 +18,7 @@ pub struct State {
     pub saved: Option<Settings>,
     pub traffic: Traffic,
     pub flash: Mt25q<Spi>,
+    pub phy: Dp83867,
     pub mtime: Mtime,
 }
 
@@ -56,7 +57,7 @@ pub fn execute(line: &str, state: &mut State) -> bool {
     };
     match command {
         "help" => help(),
-        "status" => status(&state.traffic),
+        "status" => status(&state.traffic, &state.phy),
         "stats" => stats(words.next(), &mut state.traffic),
         "mac" => mac(words.next()),
         "info" => info(&state.mtime),
@@ -125,7 +126,7 @@ fn put_count(count: u64, width: usize) {
     puts(RESET);
 }
 
-fn status(traffic: &Traffic) {
+fn status(traffic: &Traffic, phy: &Dp83867) {
     header(&[("PORT", 8), ("LINK", 6), ("SPEED", 7), ("DUPLEX", 8), ("RX KBPS", 9), ("TX KBPS", 9), ("NOTE", 0)]);
     for (port, name) in PORT_NAMES.iter().enumerate() {
         puts_padded(name, 8);
@@ -133,7 +134,7 @@ fn status(traffic: &Traffic) {
         match port {
             PORT_RGMII => {
                 // RGMII の相手は DP83867 なので、PHY のレジスタからリンクを読む。
-                let phy = dp83867::status(&MDIO);
+                let phy = phy.status();
                 if phy.link {
                     puts_styled_padded(GREEN, "up", 6);
                 } else {

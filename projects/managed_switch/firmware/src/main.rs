@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-mod commands;
 mod console;
 mod dp83867;
 mod memory_map;
@@ -9,8 +8,6 @@ mod mt25q;
 mod ports;
 mod satcat5;
 mod settings;
-mod sgr;
-mod term;
 mod traffic;
 
 use neorv32_hal::{gpio::Gpio, mtime::Mtime, pac, spi::Spi, uart::Uart};
@@ -19,8 +16,8 @@ use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
-use commands::State;
-use console::Console;
+use console::{commands::State, sgr, term, Console};
+use dp83867::Dp83867;
 use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
 use mt25q::Mt25q;
 use satcat5::mailmap::MailMap;
@@ -35,6 +32,9 @@ const CONSOLE_BAUD: u32 = 115_200;
 const FLASH_SCK_HZ: u32 = 100_000;
 /// Flash は、SPI の 0 番のチップセレクトにつながる。
 const FLASH_CS: u8 = 0;
+
+/// ボードの DP83867 は、PHY アドレス 0 で応答する。
+const DP83867_PHY_ADDR: u32 = 0;
 
 /// GPIO の入力の最下位は、PHY のリセットの解除から MDIO を使えるまでの待ちが終わったことを示す。
 const GPIO_IN_PHY_READY: u32 = 1 << 0;
@@ -82,6 +82,7 @@ fn main() -> ! {
     let mtime = Mtime::new(peripherals.clint, CLK_HZ);
     let mut gpio = Gpio::new(peripherals.gpio);
     let mut flash = Mt25q::new(Spi::new(peripherals.spi, CLK_HZ, FLASH_SCK_HZ, FLASH_CS));
+    let phy = Dp83867::new(MDIO, DP83867_PHY_ADDR);
 
     let saved = Settings::load(&mut flash);
     if saved.is_none() {
@@ -92,11 +93,12 @@ fn main() -> ! {
         saved,
         traffic: Traffic::new(mtime),
         flash,
+        phy,
         mtime,
     };
 
     while gpio.read() & GPIO_IN_PHY_READY == 0 {}
-    dp83867::init(&MDIO);
+    phy.init();
 
     let mut device = MailMap::new(MAILMAP);
     let config = Config::new(EthernetAddress(state.settings.mac).into());
@@ -108,7 +110,6 @@ fn main() -> ! {
     let mut sockets = SocketSet::new(&mut storage[..]);
 
     let mut console = Console::new();
-    console.prompt();
 
     let mut leds = 0;
     let mut next_poll = 0;
@@ -116,13 +117,8 @@ fn main() -> ! {
     loop {
         iface.poll(now(&mtime), &mut device, &mut sockets);
 
-        while let Some(byte) = term::get() {
-            if let Some(line) = console.feed(byte, commands::complete) {
-                if commands::execute(line, &mut state) {
-                    apply(&state.settings, &mut iface);
-                }
-                console.prompt();
-            }
+        if console.poll(&mut state) {
+            apply(&state.settings, &mut iface);
         }
 
         if state.traffic.due() {
@@ -134,7 +130,7 @@ fn main() -> ! {
             next_poll = millis + LINK_POLL_MSEC;
             leds ^= LED_HEARTBEAT;
             leds &= !LED_LINK;
-            if dp83867::status(&MDIO).link {
+            if phy.status().link {
                 leds |= LED_LINK;
             }
         }

@@ -1,8 +1,8 @@
 //! UART の端末から 1 行ずつ入力を受け取る。
 //! 行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
 
-use crate::sgr;
-use crate::term;
+use super::sgr;
+use super::term;
 
 pub const PROMPT: &str = "switch> ";
 pub const LINE_BYTES: usize = 64;
@@ -67,7 +67,7 @@ enum Key {
     Delete,
 }
 
-pub struct Console {
+pub struct LineEditor {
     line: Line,
     cursor: usize,
     history: [Line; HISTORY_LINES],
@@ -83,9 +83,9 @@ pub struct Console {
     after_cr: bool,
 }
 
-impl Console {
+impl LineEditor {
     pub const fn new() -> Self {
-        Console {
+        LineEditor {
             line: Line::EMPTY,
             cursor: 0,
             history: [Line::EMPTY; HISTORY_LINES],

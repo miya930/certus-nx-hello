@@ -1,14 +1,14 @@
 //! SPI Flash の Micron MT25QU128 を、SpiDevice の上で読み書きする。
 
+mod commands;
+
+use commands::*;
 use embedded_hal::spi::{Operation, SpiDevice};
 
-const CMD_PAGE_PROGRAM: u8 = 0x02;
-const CMD_READ: u8 = 0x03;
-const CMD_READ_STATUS: u8 = 0x05;
-const CMD_WRITE_ENABLE: u8 = 0x06;
-const CMD_SUBSECTOR_ERASE_4KB: u8 = 0x20;
-const STATUS_WRITE_IN_PROGRESS: u8 = 1 << 0;
-
+/// MT25QU128 は 128 Mbit ある。
+pub const CAPACITY_BYTES: u32 = 128 * 1024 * 1024 / 8;
+/// SUBSECTOR ERASE で消せる最小の区画の大きさ。
+pub const SUBSECTOR_BYTES: u32 = 4 * 1024;
 /// 1 回の PAGE PROGRAM で書ける大きさ。書く範囲はこの境界をまたげない。
 pub const PAGE_BYTES: usize = 256;
 
@@ -29,18 +29,18 @@ impl<S: SpiDevice> Mt25q<S> {
 
     pub fn read(&mut self, address: u32, buffer: &mut [u8]) -> Result<(), S::Error> {
         self.spi
-            .transaction(&mut [Operation::Write(&command(CMD_READ, address)), Operation::Read(buffer)])
+            .transaction(&mut [Operation::Write(&command(READ, address)), Operation::Read(buffer)])
     }
 
     fn write_enable(&mut self) -> Result<(), S::Error> {
-        self.spi.write(&[CMD_WRITE_ENABLE])
+        self.spi.write(&[WRITE_ENABLE])
     }
 
     fn wait_ready(&mut self) -> Result<(), S::Error> {
         loop {
             let mut status = [0];
             self.spi
-                .transaction(&mut [Operation::Write(&[CMD_READ_STATUS]), Operation::Read(&mut status)])?;
+                .transaction(&mut [Operation::Write(&[READ_STATUS_REGISTER]), Operation::Read(&mut status)])?;
             if status[0] & STATUS_WRITE_IN_PROGRESS == 0 {
                 return Ok(());
             }
@@ -50,14 +50,14 @@ impl<S: SpiDevice> Mt25q<S> {
     /// 4 KB の区画を消し、全てのバイトを 0xFF にする。
     pub fn erase_subsector(&mut self, address: u32) -> Result<(), S::Error> {
         self.write_enable()?;
-        self.spi.write(&command(CMD_SUBSECTOR_ERASE_4KB, address))?;
+        self.spi.write(&command(SUBSECTOR_ERASE_4KB, address))?;
         self.wait_ready()
     }
 
     pub fn program(&mut self, address: u32, data: &[u8]) -> Result<(), S::Error> {
         self.write_enable()?;
         self.spi
-            .transaction(&mut [Operation::Write(&command(CMD_PAGE_PROGRAM, address)), Operation::Write(data)])?;
+            .transaction(&mut [Operation::Write(&command(PAGE_PROGRAM, address)), Operation::Write(data)])?;
         self.wait_ready()
     }
 }
