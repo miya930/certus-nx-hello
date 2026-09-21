@@ -21,12 +21,12 @@ JTAG から書き込んだあとのリセットでは、命令メモリの先頭
 像は、先頭の 4 バイトが `IMEM` の文字、続く 4 バイトが中身のバイト数で、その後に命令メモリの中身が続く。
 像は `tools/firmware_flash` が作り、probe-rs で Flash に書く。
 
-`neorv32_bootrom_image.vhd` は手で編集せず、`crates/neorv32-bootrom` から次のように作る。
+`neorv32_bootrom_image.vhd` は手で編集せず、同じフォルダの `bootrom` から次のように作る。
 
 ```sh
-cd crates/neorv32-bootrom && cargo build --release && cd ../..
+cd third_party/neorv32_probe_rs/bootrom && cargo build --release && cd ../../..
 uv run tools/bootrom_image/bootrom_image.py \
-    crates/neorv32-bootrom/build/riscv32imc-unknown-none-elf/release/neorv32-bootrom \
+    third_party/neorv32_probe_rs/bootrom/build/riscv32imc-unknown-none-elf/release/neorv32-bootrom \
     third_party/neorv32_probe_rs/neorv32_bootrom_image.vhd
 ```
 

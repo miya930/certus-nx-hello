@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
--- crates/neorv32-bootrom から tools/bootrom_image で生成した。手で編集しない。
+-- bootrom から tools/bootrom_image で生成した。手で編集しない。
 -- ブートローダの代わりにこの ROM を置く理由は、同じフォルダの README.md に書いた。
 package neorv32_bootrom_image is
 

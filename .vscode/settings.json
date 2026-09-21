@@ -4,7 +4,7 @@
     "rust-analyzer.linkedProjects": [
         "projects/managed_switch/firmware/Cargo.toml",
         "projects/riscv_rust/firmware/Cargo.toml",
-        "crates/neorv32-bootrom/Cargo.toml",
+        "third_party/neorv32_probe_rs/bootrom/Cargo.toml",
         "flash_algorithms/mt25q/Cargo.toml"
     ],
     // rust-analyzer の検査と cargo run が同じビルドのフォルダを取り合わないよう、検査は別のフォルダに出す。

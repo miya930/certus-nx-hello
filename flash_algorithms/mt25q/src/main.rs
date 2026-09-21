@@ -12,7 +12,7 @@ use neorv32_hal::{pac, spi::Spi};
 /// NEORV32 の番地では外部バスにあたり、コアがこの番地を読み書きすることはない。
 const WINDOW_BASE: u32 = 0x2000_0000;
 /// probe-rs に見せるのは、ファームウェアの像を置く範囲だけにする。
-/// ビットストリームと設定を消さないためである。範囲は crates/neorv32-bootrom の IMAGE_OFFSET に合わせる。
+/// ビットストリームと設定を消さないためである。範囲は third_party/neorv32_probe_rs/bootrom の IMAGE_OFFSET に合わせる。
 const IMAGE_OFFSET: u32 = 0x00F0_0000;
 const IMAGE_AREA_BYTES: u32 = 0x0002_0000;
 

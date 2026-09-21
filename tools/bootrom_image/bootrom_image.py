@@ -9,7 +9,7 @@
 
 Usage:
     uv run tools/bootrom_image/bootrom_image.py \\
-        crates/neorv32-bootrom/build/riscv32imc-unknown-none-elf/release/neorv32-bootrom \\
+        third_party/neorv32_probe_rs/bootrom/build/riscv32imc-unknown-none-elf/release/neorv32-bootrom \\
         third_party/neorv32_probe_rs/neorv32_bootrom_image.vhd
 
 NEORV32 の neorv32_bootrom は、パッケージ neorv32_bootrom_image の image_size_c と image_data_c を読む。
@@ -49,7 +49,7 @@ def render(image: bytes) -> str:
         "library ieee;",
         "use ieee.std_logic_1164.all;",
         "",
-        "-- crates/neorv32-bootrom から tools/bootrom_image で生成した。手で編集しない。",
+        "-- bootrom から tools/bootrom_image で生成した。手で編集しない。",
         "-- ブートローダの代わりにこの ROM を置く理由は、同じフォルダの README.md に書いた。",
         "package neorv32_bootrom_image is",
         "",

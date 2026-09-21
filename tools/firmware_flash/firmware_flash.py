@@ -26,7 +26,7 @@ from pathlib import Path
 from elftools.elf.elffile import ELFFile
 
 # probe-rs が Flash を指す番地。SPI Flash の 0x00F00000 からの範囲にあたる。
-# 位置と像の書式は crates/neorv32-bootrom と、各プロジェクトの neorv32.yaml の FLASH に合わせる。
+# 位置と像の書式は third_party/neorv32_probe_rs/bootrom と、各プロジェクトの neorv32.yaml の FLASH に合わせる。
 IMAGE_ADDRESS = 0x20F0_0000
 IMAGE_MAGIC = b"IMEM"
 # 命令メモリは 0 番地から始まり、データメモリは 0x80000000 から始まる。
