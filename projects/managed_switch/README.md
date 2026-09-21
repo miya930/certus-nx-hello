@@ -44,7 +44,7 @@ CPU は、全てのデバイスをメモリマップド I/O として、アド�
 | 保存した設定 | Flash の `0xFFF000` から | コンソールの `save` | ファームウェアが、NEORV32 の SPI で書く |
 
 probe-rs は Flash を番地で扱うため、Flash の位置に `0x20000000` を足した番地で指す。
-その理由と、probe-rs に見せる範囲を絞る理由は、`crates/mt25q-flash-algorithm/README.md` にある。
+その理由と、probe-rs に見せる範囲を絞る理由は、`flash_algorithms/mt25q/README.md` にある。
 
 #### CPU のアドレス空間
 
@@ -218,7 +218,7 @@ NEORV32 は、応答をストローブの次のサイクルから受け付ける
 ### ファームウェアの Flash への書き込みと起動
 
 `cargo run` は、`tools/firmware_flash` を通して、ファームウェアを SPI Flash と命令メモリの両方に書く。
-Flash には、probe-rs が `crates/mt25q-flash-algorithm` の書き込みプログラムをデータメモリで動かして書く。
+Flash には、probe-rs が `flash_algorithms/mt25q` の書き込みプログラムをデータメモリで動かして書く。
 probe-rs は書き込みの進み具合を表示する。
 命令メモリにも書くのは、書いた直後から Flash を読まずに動かし、defmt のログを見るためである。
 

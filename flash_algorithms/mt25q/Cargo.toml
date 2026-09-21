@@ -12,8 +12,8 @@ bench = false
 [dependencies]
 # 全体の消去は、Flash の先頭にあるビットストリームまで消すため、持たない。
 flash-algorithm = { version = "0.7", default-features = false, features = ["panic-handler", "read-flash"] }
-neorv32-hal = { path = "../neorv32-hal" }
-mt25q = { path = "../mt25q" }
+neorv32-hal = { path = "../../crates/neorv32-hal" }
+mt25q = { path = "../../crates/mt25q" }
 
 [profile.release]
 opt-level = "z"
