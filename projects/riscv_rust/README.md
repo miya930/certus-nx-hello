@@ -58,6 +58,7 @@ NEORV32 の JTAG には TRST がないため、TCK、TMS、TDI、TDO の 4 本�
 `firmware/` の `no_std` のプログラムは、UART に文字列を出し、LED に 2 進数のカウンタを表示する。
 対象は、コアの命令セットに合わせて `riscv32imc-unknown-none-elf` にする。
 起動処理は `riscv-rt` に任せる。
+UART、GPIO、マシンタイマは、`crates/neorv32-hal` を通して使う。
 LED の待ち時間はマシンタイマから求めるため、点滅の周期でクロックの設定を確かめられる。
 
 ### defmt のログ

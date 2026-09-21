@@ -1,34 +1,35 @@
-//! NEORV32 の UART0 を、FT2232H の Port B につながるコンソールとして使う。
+//! コンソールの端末への入出力。UART は起動時に渡され、どのモジュールからも文字を出せるように共有する。
 
-use core::ptr::{read_volatile, write_volatile};
+use core::cell::RefCell;
+use critical_section::Mutex;
+use embedded_io::{Read, ReadReady, Write};
+use neorv32_hal::uart::Uart;
 
-const CTRL: *mut u32 = 0xFFF5_0000 as *mut u32;
-const DATA: *mut u32 = 0xFFF5_0004 as *mut u32;
+static UART: Mutex<RefCell<Option<Uart>>> = Mutex::new(RefCell::new(None));
 
-// CTRL のビット 0 は UART を有効にし、ビット 6 から 15 には分周比から 1 を引いた値を置く。
-// ビット 16 は受信 FIFO にデータがあること、ビット 19 は送信 FIFO に空きがあることを示す。
-const CTRL_EN: u32 = 1 << 0;
-const CTRL_BAUD_LSB: u32 = 6;
-const CTRL_RX_NEMPTY: u32 = 1 << 16;
-const CTRL_TX_NFULL: u32 = 1 << 19;
+pub fn init(uart: Uart) {
+    critical_section::with(|cs| UART.borrow_ref_mut(cs).replace(uart));
+}
 
-/// UART はクロックを 2 分周してから、この分周比で 1 ビットの長さを作る。
-/// 分周比は 10 ビットに収まる範囲で使い、それ以上の前置分周は使わない。
-pub fn init(clk_hz: u32, baud: u32) {
-    let divider = clk_hz / (2 * baud);
-    unsafe { write_volatile(CTRL, CTRL_EN | (divider - 1) << CTRL_BAUD_LSB) };
+fn with_uart<R>(f: impl FnOnce(&mut Uart) -> R) -> R {
+    critical_section::with(|cs| f(UART.borrow_ref_mut(cs).as_mut().expect("term::init was not called")))
 }
 
 pub fn put(byte: u8) {
-    while unsafe { read_volatile(CTRL) } & CTRL_TX_NFULL == 0 {}
-    unsafe { write_volatile(DATA, byte as u32) };
+    with_uart(|uart| {
+        let Ok(()) = uart.write_all(&[byte]);
+    });
 }
 
 pub fn get() -> Option<u8> {
-    if unsafe { read_volatile(CTRL) } & CTRL_RX_NEMPTY == 0 {
-        return None;
-    }
-    Some(unsafe { read_volatile(DATA) } as u8)
+    with_uart(|uart| {
+        let Ok(ready) = uart.read_ready();
+        let mut byte = [0];
+        ready.then(|| {
+            let Ok(_) = uart.read(&mut byte);
+            byte[0]
+        })
+    })
 }
 
 /// 端末は改行に CR と LF の両方を求めるため、LF の前に CR を足す。

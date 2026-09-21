@@ -82,7 +82,7 @@ ConfigBus のアドレスは、ビット 19 から 12 がデバイス番号、�
 | 3 `cfgbus_mdio` | 0 | 読み書き | 書くと MDIO の操作を積み、読むと結果を取り出す | PHY の設定、`status`、LED |
 
 統計のポートの番号は、0 が RGMII、1 が RMII、2 が CPU である。
-MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/mdio.rs` にある。
+MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/dp83867.rs` にある。
 各レジスタの全体の定義は、SatCat5 の次のファイルの先頭のコメントにある。
 
 - `switch_core`: `third_party/satcat5/src/vhdl/common/switch_types.vhd` のうち、ConfigBus のレジスタの一覧
@@ -118,7 +118,7 @@ MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/mdio
 | データメモリの先頭 `0x80000000` | 初期値のある変数 (`.data`) と初期値のない変数 (`.bss`) |
 | データメモリの残り | スタック。`0x80004000` から下へ伸びる |
 
-今のファームウェアは、命令メモリの約 33 KB を使い、`.data` と `.bss` は持たない。
+今のファームウェアは、命令メモリの約 34 KB を使い、`.data` と `.bss` は持たない。
 フレームのバッファ、smoltcp の状態、コンソールの状態は、全て `main` の中の変数として、スタックに置かれる。
 各セクションの位置と大きさは、`llvm-size -A` で確かめられる。
 
@@ -166,7 +166,7 @@ RGMII のクロックのずれも同じ MDIO の書き込みで PHY に作らせ
 
 PHY のリセットの解除から MDIO を使えるまでの待ちは、FPGA の回路が数える。
 待ちが終わると GPIO の入力の最下位が 1 になり、ファームウェアはそれを見てから MDIO で PHY を設定する。
-書き込むレジスタと値は、`firmware/src/mdio.rs` にある。
+書き込むレジスタと値は、`firmware/src/dp83867.rs` にある。
 
 MDIO のデータ線は双方向で、SatCat5 の `cfgbus_mdio` は下の階層で 3 状態の出力を作る。
 GHDL で合成すると、下の階層を通る双方向のポートはトップのポートとのつながりが切れる。
@@ -257,6 +257,16 @@ SPI のクロックは約 98 kHz にする。
 ARP と ICMP の echo には smoltcp が応答するため、ソケットは開かない。
 主ループは、通信の処理とコンソールの入力を交互に行い、500 ms ごとに PHY のリンクを読んで LED に出す。
 
+レジスタを直接読み書きするのは、次の層だけにする。
+上の層は、これらの型を通して周辺を使う。
+
+- NEORV32 に内蔵の UART、SPI、GPIO、マシンタイマは、`crates/neorv32-hal` を通して使う。
+- SatCat5 の ConfigBus のデバイスは、`firmware/src/satcat5/` の型を通して使う。
+- 各デバイスの番地は、`firmware/src/memory_map.rs` だけに書く。
+
+DP83867 の設定は `firmware/src/dp83867.rs` が MDIO の型を通して行う。
+Flash の MT25QU128 は `firmware/src/mt25q.rs` が embedded-hal の `SpiDevice` を通して読み書きする。
+
 `cargo run` で JTAG から書き込むための対処は、`projects/riscv_rust/README.md` にまとめてある。
 このプロジェクトでは、それに加えて次の 2 つをした。
 
@@ -304,7 +314,7 @@ nextpnr-nexus は、設計全体に 1 つの目標周波数しか与えられな
 合成のログには、ABC が出す `The network is combinational.` という警告が 1 件残る。
 これは論理最適化の内部の知らせで、回路の不具合を示すものではない。
 
-ファームウェアは、命令メモリの 64 KB のうち約 33 KB を使う。
+ファームウェアは、命令メモリの 64 KB のうち約 34 KB を使う。
 命令メモリは、32 KB ではファームウェアが入りきらなくなったため、64 KB にした。
 データメモリはスタックだけに使い、`main` のスタックは約 5.3 KB なので、16 KB に減らして EBR を空けた。
 

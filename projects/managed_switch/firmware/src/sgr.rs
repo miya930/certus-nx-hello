@@ -1,7 +1,7 @@
 //! 端末の文字の色と太さを、ANSI のエスケープシーケンス (SGR) で指定する。
 //! 色の指定は表示の幅を持たないため、列をそろえるときは文字数に数えない。
 
-use crate::uart::puts;
+use crate::term::puts;
 
 pub const BOLD: &str = "\x1b[1m";
 pub const RED: &str = "\x1b[31m";

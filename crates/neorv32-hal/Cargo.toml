@@ -1,0 +1,9 @@
+[package]
+name = "neorv32-hal"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+neorv32-pac = { path = "../neorv32-pac" }
+embedded-hal = "1"
+embedded-io = "0.7"

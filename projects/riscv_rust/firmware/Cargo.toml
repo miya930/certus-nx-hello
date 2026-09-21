@@ -9,6 +9,9 @@ riscv-rt = { version = "0.18", features = ["single-hart"] }
 riscv = { version = "0.16", features = ["critical-section-single-hart"] }
 defmt = "1"
 defmt-rtt = "1"
+embedded-hal = "1"
+embedded-io = "0.7"
+neorv32-hal = { path = "../../../crates/neorv32-hal" }
 
 # 命令メモリは 16 KB で、最適化しないとファームウェアが入りきらないため、開発用のビルドでも大きさを詰める。
 [profile.dev]

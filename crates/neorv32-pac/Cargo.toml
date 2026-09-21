@@ -1,0 +1,15 @@
+[package]
+name = "neorv32-pac"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+critical-section = { version = "1", optional = true }
+vcell = "0.1"
+
+# Peripherals::take は、周辺を一度だけ渡すために critical-section を使う。
+[features]
+default = ["critical-section"]
+
+[build-dependencies]
+svd2rust = { version = "0.37", default-features = false }

@@ -1,12 +1,15 @@
 //! コンソールのコマンドを解釈して実行する。
 
-use crate::clint;
-use crate::mdio;
+use crate::dp83867;
+use crate::memory_map::{MDIO, PORT_STATS, SWITCH_CORE};
+use crate::mt25q::Mt25q;
+use crate::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
+use crate::satcat5::port_stats::RMII_STATUS_LOCK;
 use crate::settings::{self, Settings};
 use crate::sgr::{puts_styled, puts_styled_padded, BOLD, GREEN, RED, RESET, YELLOW};
-use crate::switch::{self, PORT_NAMES, PORT_RGMII, PORT_RMII};
+use crate::term::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
 use crate::traffic::Traffic;
-use crate::uart::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
+use neorv32_hal::{mtime::Mtime, spi::Spi};
 
 pub struct State {
     /// 動作中の設定。
@@ -14,6 +17,8 @@ pub struct State {
     /// Flash に保存してある設定。保存したことがなければ None になる。
     pub saved: Option<Settings>,
     pub traffic: Traffic,
+    pub flash: Mt25q<Spi>,
+    pub mtime: Mtime,
 }
 
 const COMMANDS: [(&str, &str); 9] = [
@@ -54,11 +59,11 @@ pub fn execute(line: &str, state: &mut State) -> bool {
         "status" => status(&state.traffic),
         "stats" => stats(words.next(), &mut state.traffic),
         "mac" => mac(words.next()),
-        "info" => info(),
+        "info" => info(&state.mtime),
         "show" => show(state),
         "set" => return set(words.next(), words.next(), &mut state.settings),
         "save" => {
-            state.settings.save();
+            let Ok(()) = state.settings.save(&mut state.flash);
             state.saved = Some(state.settings);
             puts_styled(GREEN, "Saved.\n");
         }
@@ -128,7 +133,7 @@ fn status(traffic: &Traffic) {
         match port {
             PORT_RGMII => {
                 // RGMII の相手は DP83867 なので、PHY のレジスタからリンクを読む。
-                let phy = mdio::phy_status();
+                let phy = dp83867::status(&MDIO);
                 if phy.link {
                     puts_styled_padded(GREEN, "up", 6);
                 } else {
@@ -144,10 +149,11 @@ fn status(traffic: &Traffic) {
                 // LAN8720 の MDIO は PMOD に出していないため、リンクは読めない。
                 // RMII のポートが報告する、REF_CLK のロックと速度を出す。
                 // REF_CLK が来ていないときの速度は意味を持たない。
-                let locked = switch::link_status(port) & switch::RMII_STATUS_LOCK != 0;
+                let (speed_mbps, status) = PORT_STATS.link(port);
+                let locked = status & RMII_STATUS_LOCK != 0;
                 puts_padded("-", 6);
                 if locked {
-                    put_dec_padded(switch::link_speed_mbps(port), 7);
+                    put_dec_padded(speed_mbps, 7);
                 } else {
                     puts_padded("-", 7);
                 }
@@ -206,7 +212,7 @@ fn stats(argument: Option<&str>, traffic: &mut Traffic) {
         puts("\n");
     }
     puts("Counted over ");
-    put_duration(clint::millis() - traffic.since_msec);
+    put_duration(traffic.counted_msec());
     puts(". Discards are FIFO overflows; errors are MAC, PHY and frame errors.\n");
 }
 
@@ -215,17 +221,17 @@ fn mac(argument: Option<&str>) {
     match argument {
         None => {}
         Some(CLEAR_WORD) => {
-            switch::mac_clear();
+            SWITCH_CORE.mac_clear();
             puts_styled(GREEN, "Cleared the MAC address table.\n");
             return;
         }
         Some(other) => return unknown_argument(other),
     }
-    let table_size = switch::info().table_size;
+    let table_size = SWITCH_CORE.info().table_size;
     header(&[("INDEX", 7), ("MAC ADDRESS", 19), ("PORT", 0)]);
     let mut used: u32 = 0;
     for index in 0..table_size {
-        if let Some((mac, port)) = switch::mac_entry(index) {
+        if let Some((mac, port)) = SWITCH_CORE.mac_entry(index) {
             put_dec_padded(index, 7);
             put_mac(&mac);
             puts("  ");
@@ -267,8 +273,8 @@ fn put_duration(msec: u64) {
     }
 }
 
-fn info() {
-    let info = switch::info();
+fn info(mtime: &Mtime) {
+    let info = SWITCH_CORE.info();
     puts("Ports:           ");
     put_dec(info.ports);
     puts("\nData width:      ");
@@ -282,7 +288,7 @@ fn info() {
     puts(" - ");
     put_dec(info.frame_max);
     puts(" bytes\nUptime:          ");
-    put_duration(clint::millis());
+    put_duration(mtime.millis());
     puts("\n");
 }
 

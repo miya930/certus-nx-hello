@@ -1,7 +1,8 @@
 //! コンソールから変える設定と、SPI Flash への保存。
 
-use crate::flash;
-use crate::switch::PORT_NAMES;
+use crate::mt25q::{self, Mt25q};
+use crate::ports::PORT_NAMES;
+use embedded_hal::spi::SpiDevice;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Settings {
@@ -36,7 +37,7 @@ const NONE: u8 = 0xFF;
 // 書式: MAGIC 4、MAC 6、IP 4、プレフィックス長 1、ゲートウェイの有無 1、ゲートウェイ 4、ミラーのポート 1、CRC-32 4。
 const RECORD_BYTES: usize = 25;
 const CRC_BYTES: usize = 4;
-const _: () = assert!(RECORD_BYTES <= flash::PAGE_BYTES);
+const _: () = assert!(RECORD_BYTES <= mt25q::PAGE_BYTES);
 
 /// CRC-32 は Ethernet の FCS と同じ多項式を、ビットごとに計算する。
 fn crc32(data: &[u8]) -> u32 {
@@ -85,14 +86,14 @@ impl Settings {
     }
 
     /// 保存したことがない、または壊れているときは None を返す。
-    pub fn load() -> Option<Settings> {
+    pub fn load<S: SpiDevice>(flash: &mut Mt25q<S>) -> Option<Settings> {
         let mut record = [0; RECORD_BYTES];
-        flash::read(OFFSET, &mut record);
+        flash.read(OFFSET, &mut record).ok()?;
         Settings::decode(&record)
     }
 
-    pub fn save(&self) {
-        flash::erase_subsector(OFFSET);
-        flash::program(OFFSET, &self.encode());
+    pub fn save<S: SpiDevice>(&self, flash: &mut Mt25q<S>) -> Result<(), S::Error> {
+        flash.erase_subsector(OFFSET)?;
+        flash.program(OFFSET, &self.encode())
     }
 }

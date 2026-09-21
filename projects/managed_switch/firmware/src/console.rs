@@ -2,7 +2,7 @@
 //! 行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
 
 use crate::sgr;
-use crate::uart;
+use crate::term;
 
 pub const PROMPT: &str = "switch> ";
 pub const LINE_BYTES: usize = 64;
@@ -171,7 +171,7 @@ impl Console {
             CTRL_N => self.key(Key::Down),
             CTRL_D => self.key(Key::Delete),
             CTRL_C => {
-                uart::puts("^C\n");
+                term::puts("^C\n");
                 self.line = Line::EMPTY;
                 self.cursor = 0;
                 self.browse = None;
@@ -188,7 +188,7 @@ impl Console {
             }
             CTRL_L => {
                 // 画面を消し、カーソルを左上に戻してから行を描き直す。
-                uart::puts("\x1b[2J\x1b[H");
+                term::puts("\x1b[2J\x1b[H");
                 self.refresh();
             }
             b' '..=b'~' => self.insert(&[byte]),
@@ -212,18 +212,18 @@ impl Console {
 
     /// 行頭から描き直し、行末の残りを消してから、カーソルを編集位置へ戻す。
     fn refresh(&self) {
-        uart::put(CR);
+        term::put(CR);
         self.prompt();
-        uart::puts(self.line.as_str());
-        uart::puts("\x1b[K");
+        term::puts(self.line.as_str());
+        term::puts("\x1b[K");
         self.cursor_back(self.line.len - self.cursor);
     }
 
     fn cursor_back(&self, columns: usize) {
         if columns > 0 {
-            uart::puts("\x1b[");
-            uart::put_dec(columns as u32);
-            uart::put(b'D');
+            term::puts("\x1b[");
+            term::put_dec(columns as u32);
+            term::put(b'D');
         }
     }
 
@@ -241,7 +241,7 @@ impl Console {
     fn insert(&mut self, text: &[u8]) {
         let count = text.len().min(LINE_BYTES - self.line.len);
         if count == 0 {
-            uart::put(BELL);
+            term::put(BELL);
             return;
         }
         let (cursor, len) = (self.cursor, self.line.len);
@@ -252,7 +252,7 @@ impl Console {
         if self.cursor == self.line.len {
             // 行末への追加は、描き直さずにそのまま表示する。
             for &byte in &text[..count] {
-                uart::put(byte);
+                term::put(byte);
             }
         } else {
             self.refresh();
@@ -291,7 +291,7 @@ impl Console {
     }
 
     fn enter(&mut self) -> &str {
-        uart::puts("\n");
+        term::puts("\n");
         let line = self.line;
         if !line.as_str().trim().is_empty() {
             let newest = &self.history[0];
@@ -315,7 +315,7 @@ impl Console {
             (Some(0), false) => None,
             (Some(index), false) => Some(index - 1),
             _ => {
-                uart::put(BELL);
+                term::put(BELL);
                 return;
             }
         };
@@ -346,7 +346,7 @@ impl Console {
         }
         let typed = self.cursor - start;
         match count {
-            0 => uart::put(BELL),
+            0 => term::put(BELL),
             1 => {
                 let rest = &candidates[0].as_bytes()[typed..];
                 self.insert(rest);
@@ -360,12 +360,12 @@ impl Console {
                     self.insert(&candidates[0].as_bytes()[typed..common]);
                     return;
                 }
-                uart::puts("\n");
+                term::puts("\n");
                 for word in &candidates[..count] {
-                    uart::puts(word);
-                    uart::puts("  ");
+                    term::puts(word);
+                    term::puts("  ");
                 }
-                uart::puts("\n");
+                term::puts("\n");
                 self.refresh();
             }
         }
