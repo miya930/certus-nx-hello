@@ -1,0 +1,27 @@
+--- a/src/vhdl/common/packet_round_robin.vhd
++++ b/src/vhdl/common/packet_round_robin.vhd
+@@ -62,19 +62,20 @@
+ -- Choose the next selection index using two priority encoders:
+ -- The first only considers ports counting up from the previous selection.
+ -- The second considers all ports, to handle the wraparound case.
++-- 引数の名前がエンティティのポート in_valid と重なり、GHDL が隠れた名前の警告を出すため、valid に変えた。
+ function round_robin(
+-    in_valid    : port_slv;
++    valid       : port_slv;
+     prev_mask   : port_slv;
+     prev_idx    : port_idx)
+     return port_idx
+ is
+-    constant in_vmask : port_slv := in_valid and prev_mask;
++    constant in_vmask : port_slv := valid and prev_mask;
+ begin
+     -- Combinational logic only.
+     if (or_reduce(in_vmask) = '1') then
+         return priority_encoder(in_vmask);
+-    elsif (or_reduce(in_valid) = '1') then
+-        return priority_encoder(in_valid);
++    elsif (or_reduce(valid) = '1') then
++        return priority_encoder(valid);
+     else
+         return prev_idx;
+     end if;

@@ -5,6 +5,10 @@ VHDL := led.vhd
 
 GHDL_FLAGS := --workdir=$(BUILD)
 
+# エンティティはプロジェクトの名前、ポートはデータシートの信号名で、どちらも led になる。
+# アーキテクチャの中ではポートの led がエンティティの名前を隠すが、エンティティの名前は参照しないため、この警告は止める。
+GHDL_WARNINGS := -Wno-hide
+
 all: $(BUILD)/led.bit
 
 # ghdl -m で解析結果をライブラリに保存すると、解析時刻で依存の新旧を判定するため、システム時刻が巻き戻ると失敗する。
@@ -13,7 +17,7 @@ $(BUILD)/led.json: $(VHDL) Makefile
 	mkdir -p $(BUILD)
 	ghdl -i $(GHDL_FLAGS) $(VHDL)
 	yosys -m ghdl -l $(BUILD)/yosys.log -q -p \
-		"ghdl $$(ghdl --elab-order $(GHDL_FLAGS) led 2>/dev/null | tr '\n' ' ') -e led; \
+		"ghdl $(GHDL_WARNINGS) $$(ghdl --elab-order $(GHDL_FLAGS) led 2>/dev/null | tr '\n' ' ') -e led; \
 		 synth_nexus -top led -json $@"
 
 # PDC の create_clock は入力バッファより先のクロック網に伝わらないため、目標の周波数は nextpnr-nexus に渡す。
@@ -29,7 +33,7 @@ SIM_VHDL := $(VHDL) led_tb.vhd
 # ghdl -c は解析結果をライブラリに保存しないため、システム時刻が巻き戻っても失敗しない。
 sim: $(SIM_VHDL)
 	mkdir -p build/sim
-	ghdl -c --workdir=build/sim -o build/sim/led_tb $(SIM_VHDL) -e led_tb
+	ghdl -c $(GHDL_WARNINGS) --workdir=build/sim -o build/sim/led_tb $(SIM_VHDL) -e led_tb
 	build/sim/led_tb --assert-level=error
 
 # SRAM に書き込む。電源を切ると消える。

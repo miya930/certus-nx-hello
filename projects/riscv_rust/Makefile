@@ -15,10 +15,12 @@ VHDL := $(CORE_VHDL) riscv_rust.vhd
 all: $(BUILD)/riscv_rust.bit
 
 # 解析から合成までを yosys の 1 プロセスで行うため、解析結果をライブラリに残さない。
+# GHDL が RAM と ROM を見つけるたびに出す知らせは、警告ではないため --no-notes で止める。
+# NEORV32 が assert 文で出す構成の知らせは、GHDL の選択肢では止められないため、端末に残る。
 $(BUILD)/riscv_rust.json: $(VHDL) Makefile
 	mkdir -p $(BUILD)
 	yosys -m ghdl -l $(BUILD)/yosys.log -q -p \
-		"ghdl $(GHDL_FLAGS) $(VHDL) -e riscv_rust; \
+		"ghdl $(GHDL_FLAGS) --no-notes $(VHDL) -e riscv_rust; \
 		 synth_nexus -top riscv_rust -json $@"
 
 # PDC の create_clock は入力バッファより先のクロック網に伝わらないため、目標の周波数は nextpnr-nexus に渡す。
