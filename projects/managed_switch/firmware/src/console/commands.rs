@@ -25,26 +25,26 @@ const COMMANDS: [Command; 9] = [
         name: "status",
         text: "Show the link state and the load of each port.",
         forms: &[("PORT", "Show the details of one port: rgmii, rmii or cpu.")],
-        examples: &["status rgmii"],
+        examples: &["status", "status rgmii"],
     },
     Command {
         name: "stats",
         text: "Show the traffic since boot.",
         forms: &[(CLEAR_WORD, "Restart the count.")],
-        examples: &["stats clear"],
+        examples: &["stats", "stats clear"],
     },
     Command {
         name: "mac",
         text: "Show the MAC address table.",
         forms: &[(CLEAR_WORD, "Empty the MAC address table.")],
-        examples: &["mac clear"],
+        examples: &["mac", "mac clear"],
     },
     Command { name: "info", text: "Show the parameters of the switch core and the uptime.", forms: &[], examples: &[] },
     Command { name: "show", text: "Show the settings.", forms: &[], examples: &[] },
     Command {
         name: "set",
         text: "List the settings and the values they take.",
-        forms: &[("ITEM VALUE", "Change a setting now. Use \"save\" to keep it.")],
+        forms: &[],
         examples: &[
             "set ip 192.168.1.10/24",
             "set gateway 192.168.1.1",
@@ -62,6 +62,9 @@ const COMMANDS: [Command; 9] = [
         examples: &[],
     },
 ];
+
+/// set の値を変える形は、設定の表と並べないと打てないため、一覧には出さず set help でだけ出す。
+const SET_FORM: (&str, &str) = ("ITEM VALUE", "Change a setting now. Use \"save\" to keep it.");
 
 /// set で変えられる設定の名前、値の書式、何を変えるか。
 const SET_ITEMS: [(&str, &str, &str); 4] = [
@@ -178,19 +181,24 @@ impl<'a> Commands<'a> {
         self.out.puts_styled_padded(Style::HEADING, command.name, HELP_COLUMN);
         self.out.puts(command.text);
         self.out.puts("\n");
-        for &(argument, text) in command.forms {
-            self.out.puts_styled(Style::HEADING, command.name);
-            self.out.put(b' ');
-            self.out.puts_padded(argument, HELP_COLUMN - command.name.len() - 1);
-            self.out.puts(text);
-            self.out.puts("\n");
+        for &form in command.forms {
+            self.put_form(command.name, form);
         }
+    }
+
+    fn put_form(&mut self, name: &str, (argument, text): (&str, &str)) {
+        self.out.puts_styled(Style::HEADING, name);
+        self.out.put(b' ');
+        self.out.puts_padded(argument, HELP_COLUMN - name.len() - 1);
+        self.out.puts(text);
+        self.out.puts("\n");
     }
 
     /// 1 つのコマンドの形と例を出す。set は値の書式がないと打てないため、設定の表も出す。
     fn command_help(&mut self, command: &Command) {
         self.put_command(command);
         if command.name == "set" {
+            self.put_form(command.name, SET_FORM);
             self.out.puts("\n");
             self.put_set_items();
         }
