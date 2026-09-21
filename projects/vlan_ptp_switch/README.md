@@ -3,7 +3,6 @@
 LFD2NX-40 に SatCat5 のスイッチを実装し、RMII の PHY をつなぐ Ethernet スイッチとして使う。
 VLAN と PTP を有効にし、どの RMII ポートからでも Ethernet フレームで設定を変えられる。
 実機はまだないため、テストベンチと合成、配置配線で動作と回路規模を確認している。
-PHY 基板の仕様は、[3 ポート Ethernet PHY 基板](../../hw/multi_phy_board/README.md) にまとめている。
 
 ## 構成
 
