@@ -30,9 +30,6 @@ fn write_reg(index: usize, value: u32) {
     unsafe { write_volatile((BASE + index * 4) as *mut u32, value) };
 }
 
-/// 送信バッファへ書いた値と読み返した値が食い違った回数。
-pub static mut TX_MISMATCH: u32 = 0;
-
 pub struct MailMap {
     rx_buffer: [u8; BUFFER_BYTES],
     tx_buffer: [u8; BUFFER_BYTES],
@@ -130,14 +127,6 @@ impl<'a> phy::TxToken for TxToken<'a> {
             let remain = (length - offset).min(4);
             word[..remain].copy_from_slice(&self.buffer[offset..offset + remain]);
             write_reg(REG_TX_DATA + offset / 4, u32::from_le_bytes(word));
-        }
-        for offset in (0..length).step_by(4) {
-            let mut word = [0u8; 4];
-            let remain = (length - offset).min(4);
-            word[..remain].copy_from_slice(&self.buffer[offset..offset + remain]);
-            if read_reg(REG_TX_DATA + offset / 4) != u32::from_le_bytes(word) {
-                unsafe { TX_MISMATCH = TX_MISMATCH.wrapping_add(1) };
-            }
         }
         write_reg(REG_TX_CTRL, length as u32);
         result

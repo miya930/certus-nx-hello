@@ -21,11 +21,11 @@ const UART_CTRL_TX_NFULL: u32 = 1 << 19;
 
 const CLK_HZ: u32 = 25_000_000;
 
-// ローカル管理のアドレスを使う。
-// PC 側が DHCP のアドレスを取れずに使うリンクローカルの範囲に合わせてあり、直結でそのまま試せる。
+// MAC はローカル管理のアドレスを使う。
+// IP は固定で、プライベートアドレスの範囲から選ぶ。
 const MAC: [u8; 6] = [0x5A, 0x5A, 0x00, 0x00, 0x00, 0x02];
-const IP: Ipv4Address = Ipv4Address::new(169, 254, 111, 50);
-const PREFIX: u8 = 16;
+const IP: Ipv4Address = Ipv4Address::new(192, 168, 1, 10);
+const PREFIX: u8 = 24;
 
 /// ブートローダが設定した速度をそのまま使うため、CTRL は書き換えない。
 fn uart_put(byte: u8) {
@@ -61,8 +61,8 @@ fn now() -> Instant {
 
 #[riscv_rt::entry]
 fn main() -> ! {
-    uart_puts("\nIP endpoint on NEORV32.\n");
-    uart_puts("Address 169.254.111.50/16, MAC 5A:5A:00:00:00:02.\n");
+    uart_puts("\nManaged switch on NEORV32.\n");
+    uart_puts("Address 192.168.1.10/24, MAC 5A:5A:00:00:00:02.\n");
 
     let mut device = mailmap::MailMap::new();
     let config = Config::new(EthernetAddress(MAC).into());
@@ -86,11 +86,6 @@ fn main() -> ! {
         if now() >= next_beat {
             heartbeat ^= 1;
             next_beat = now() + Duration::from_secs(1);
-            let mismatch = unsafe { mailmap::TX_MISMATCH };
-            if mismatch != 0 {
-                uart_puts("tx buffer mismatch\n");
-            }
-            let _ = mismatch;
         }
         unsafe { write_volatile(GPIO_PORT_OUT, (heartbeat << 7) | (device.rx_count & 0x7F)) };
     }
