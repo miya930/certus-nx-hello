@@ -72,6 +72,9 @@ sim: $(SIM_VHDL)
 	mkdir -p build/sim
 	ghdl -c --std=08 --work=neorv32 --workdir=build/sim -o build/sim/managed_switch_tb $(SIM_VHDL) -e managed_switch_tb
 	build/sim/managed_switch_tb --assert-level=error --ieee-asserts=disable
+	ghdl -c --std=08 --work=neorv32 --workdir=build/sim -o build/sim/eth_statistics_tb $(VHDL) \
+		$(wildcard $(NEXUS)/sim/*.vhd) $(PATCHES)/eth_statistics_tb.vhd -e eth_statistics_tb
+	build/sim/eth_statistics_tb --assert-level=error --ieee-asserts=disable
 
 # SRAM に書き込む。電源を切ると消える。
 load: $(BUILD)/managed_switch.bit
