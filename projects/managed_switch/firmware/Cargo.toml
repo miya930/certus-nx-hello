@@ -3,9 +3,20 @@ name = "managed_switch_firmware"
 version = "0.1.0"
 edition = "2021"
 
+# no_std の対象には test クレートがないため、テストとベンチマークは組み立てられない。
+# rust-analyzer が全ての対象を検査しても失敗しないよう、対象から外す。
+[[bin]]
+name = "managed_switch_firmware"
+test = false
+bench = false
+
 [dependencies]
 riscv-rt = { version = "0.18", features = ["single-hart"] }
 panic-halt = "1.0"
+# PAC の Peripherals::take は critical-section で一度だけ周辺を渡すため、単一ハートの実装を riscv から取る。
+riscv = { version = "0.16", features = ["critical-section-single-hart"] }
+embedded-hal = "1"
+neorv32-hal = { path = "../../../crates/neorv32-hal" }
 
 [dependencies.smoltcp]
 version = "0.14"
@@ -15,7 +26,7 @@ default-features = false
 features = ["medium-ethernet", "proto-ipv4", "socket-icmp", "auto-icmp-echo-reply"]
 
 # cargo run は開発用のビルドを使う。
-# 命令メモリは 32 KB で、検査を入れた開発用のビルドは入りきらないため、リリースと同じ中身にする。
+# 命令メモリは 64 KB で、検査を入れた開発用のビルドは入りきらないため、リリースと同じ中身にする。
 [profile.dev]
 opt-level = "z"
 lto = true

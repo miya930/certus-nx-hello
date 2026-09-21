@@ -1,7 +1,8 @@
 //! コンソールから変える設定と、SPI Flash への保存。
 
-use crate::flash;
-use crate::switch::PORT_NAMES;
+use crate::mt25q::{self, Mt25q};
+use crate::ports::PORT_NAMES;
+use embedded_hal::spi::SpiDevice;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Settings {
@@ -22,11 +23,9 @@ pub const DEFAULT: Settings = Settings {
     mirror: None,
 };
 
-/// ボードの Flash は 128 Mbit で、FPGA のビットストリームは先頭から置かれる。
-/// 設定は、ビットストリームと重ならない最後の 4 KB の区画に置く。
-const FLASH_BYTES: u32 = 128 * 1024 * 1024 / 8;
-const SUBSECTOR_BYTES: u32 = 4 * 1024;
-const OFFSET: u32 = FLASH_BYTES - SUBSECTOR_BYTES;
+/// FPGA のビットストリームは Flash の先頭から置かれる。
+/// 設定は、ビットストリームと重ならない最後の区画に置く。
+const OFFSET: u32 = mt25q::CAPACITY_BYTES - mt25q::SUBSECTOR_BYTES;
 
 /// 書式を変えたときは末尾の番号を上げ、古い書式を読まないようにする。
 const MAGIC: [u8; 4] = *b"MSW1";
@@ -36,21 +35,21 @@ const NONE: u8 = 0xFF;
 // 書式: MAGIC 4、MAC 6、IP 4、プレフィックス長 1、ゲートウェイの有無 1、ゲートウェイ 4、ミラーのポート 1、CRC-32 4。
 const RECORD_BYTES: usize = 25;
 const CRC_BYTES: usize = 4;
-const _: () = assert!(RECORD_BYTES <= flash::PAGE_BYTES);
-
-/// CRC-32 は Ethernet の FCS と同じ多項式を、ビットごとに計算する。
-fn crc32(data: &[u8]) -> u32 {
-    let mut crc = !0u32;
-    for &byte in data {
-        crc ^= byte as u32;
-        for _ in 0..8 {
-            crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
-        }
-    }
-    !crc
-}
+const _: () = assert!(RECORD_BYTES <= mt25q::PAGE_BYTES);
 
 impl Settings {
+    /// CRC-32 は Ethernet の FCS と同じ多項式を、ビットごとに計算する。
+    fn crc32(data: &[u8]) -> u32 {
+        let mut crc = !0u32;
+        for &byte in data {
+            crc ^= byte as u32;
+            for _ in 0..8 {
+                crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+            }
+        }
+        !crc
+    }
+
     fn encode(&self) -> [u8; RECORD_BYTES] {
         let mut record = [0; RECORD_BYTES];
         record[0..4].copy_from_slice(&MAGIC);
@@ -60,14 +59,14 @@ impl Settings {
         record[15] = if self.gateway.is_some() { 1 } else { NONE };
         record[16..20].copy_from_slice(&self.gateway.unwrap_or([NONE; 4]));
         record[20] = self.mirror.unwrap_or(NONE);
-        let crc = crc32(&record[..RECORD_BYTES - CRC_BYTES]);
+        let crc = Self::crc32(&record[..RECORD_BYTES - CRC_BYTES]);
         record[RECORD_BYTES - CRC_BYTES..].copy_from_slice(&crc.to_le_bytes());
         record
     }
 
     fn decode(record: &[u8; RECORD_BYTES]) -> Option<Settings> {
         let (body, crc) = record.split_at(RECORD_BYTES - CRC_BYTES);
-        if body[0..4] != MAGIC || crc32(body).to_le_bytes() != crc {
+        if body[0..4] != MAGIC || Self::crc32(body).to_le_bytes() != crc {
             return None;
         }
         let mirror = match record[20] {
@@ -85,14 +84,14 @@ impl Settings {
     }
 
     /// 保存したことがない、または壊れているときは None を返す。
-    pub fn load() -> Option<Settings> {
+    pub fn load<S: SpiDevice>(flash: &mut Mt25q<S>) -> Option<Settings> {
         let mut record = [0; RECORD_BYTES];
-        flash::read(OFFSET, &mut record);
+        flash.read(OFFSET, &mut record).ok()?;
         Settings::decode(&record)
     }
 
-    pub fn save(&self) {
-        flash::erase_subsector(OFFSET);
-        flash::program(OFFSET, &self.encode());
+    pub fn save<S: SpiDevice>(&self, flash: &mut Mt25q<S>) -> Result<(), S::Error> {
+        flash.erase_subsector(OFFSET)?;
+        flash.program(OFFSET, &self.encode())
     }
 }

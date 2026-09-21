@@ -1,6 +1,6 @@
 //! SatCat5 の port_mailmap を smoltcp の Device として扱う。
 
-use crate::cfgbus::{self, DEV_MAILMAP};
+use super::Device;
 use smoltcp::phy::{self, Checksum, ChecksumCapabilities, DeviceCapabilities, Medium};
 use smoltcp::time::Instant;
 
@@ -16,18 +16,50 @@ const REG_TX_CTRL: usize = 1023;
 /// 受信と送信それぞれに割り当てられたレジスタの数から決まる上限。
 const MTU: usize = 1514;
 const BUFFER_BYTES: usize = 1600;
+const WORD_BYTES: usize = 4;
 
-/// ConfigBus を Wishbone 経由でつないでいるため、バイト単位の書き込みができない。
-/// フレームはワード単位で読み書きし、バイトへの詰め替えは CPU 側で行う。
-fn read_reg(index: usize) -> u32 {
-    cfgbus::read(DEV_MAILMAP, index)
+/// port_mailmap のレジスタ。ConfigBus への橋渡しはバイト単位の書き込みを持たないため、フレームはワード単位で読み書きする。
+#[derive(Clone, Copy)]
+pub struct MailMapPort {
+    device: Device,
 }
 
-fn write_reg(index: usize, value: u32) {
-    cfgbus::write(DEV_MAILMAP, index, value);
+impl MailMapPort {
+    pub const fn new(device: Device) -> Self {
+        MailMapPort { device }
+    }
+
+    fn rx_length(&self) -> usize {
+        self.device.read(REG_RX_CTRL) as usize
+    }
+
+    /// 受信したフレームを読み出し、読み終えたことを知らせて次へ進める。
+    fn take_frame(&self, buffer: &mut [u8]) {
+        for (index, chunk) in buffer.chunks_mut(WORD_BYTES).enumerate() {
+            let word = self.device.read(REG_RX_DATA + index).to_le_bytes();
+            chunk.copy_from_slice(&word[..chunk.len()]);
+        }
+        self.device.write(REG_RX_CTRL, 0);
+    }
+
+    fn transmit_busy(&self) -> bool {
+        self.device.read(REG_TX_CTRL) != 0
+    }
+
+    /// 送信中はバッファへの書き込みが無視されるため、空くまで待ってから書く。
+    fn send_frame(&self, frame: &[u8]) {
+        while self.transmit_busy() {}
+        for (index, chunk) in frame.chunks(WORD_BYTES).enumerate() {
+            let mut word = [0u8; WORD_BYTES];
+            word[..chunk.len()].copy_from_slice(chunk);
+            self.device.write(REG_TX_DATA + index, u32::from_le_bytes(word));
+        }
+        self.device.write(REG_TX_CTRL, frame.len() as u32);
+    }
 }
 
 pub struct MailMap {
+    port: MailMapPort,
     rx_buffer: [u8; BUFFER_BYTES],
     tx_buffer: [u8; BUFFER_BYTES],
     /// 受け取ったフレームの数。動作の確認に使う。
@@ -35,31 +67,13 @@ pub struct MailMap {
 }
 
 impl MailMap {
-    pub const fn new() -> Self {
+    pub const fn new(port: MailMapPort) -> Self {
         Self {
+            port,
             rx_buffer: [0; BUFFER_BYTES],
             tx_buffer: [0; BUFFER_BYTES],
             rx_count: 0,
         }
-    }
-
-    fn rx_length(&self) -> usize {
-        read_reg(REG_RX_CTRL) as usize
-    }
-
-    /// 受信したフレームをワード単位で読み出し、読み終えたことを知らせて次へ進める。
-    fn take_frame(&mut self, length: usize) {
-        for offset in (0..length).step_by(4) {
-            let word = read_reg(REG_RX_DATA + offset / 4).to_le_bytes();
-            let remain = (length - offset).min(4);
-            self.rx_buffer[offset..offset + remain].copy_from_slice(&word[..remain]);
-        }
-        write_reg(REG_RX_CTRL, 0);
-        self.rx_count = self.rx_count.wrapping_add(1);
-    }
-
-    fn transmit_busy(&self) -> bool {
-        read_reg(REG_TX_CTRL) != 0
     }
 }
 
@@ -80,20 +94,23 @@ impl phy::Device for MailMap {
     }
 
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
-        let length = self.rx_length();
-        if length == 0 || length > BUFFER_BYTES || self.transmit_busy() {
+        let length = self.port.rx_length();
+        if length == 0 || length > BUFFER_BYTES || self.port.transmit_busy() {
             return None;
         }
-        self.take_frame(length);
+        self.port.take_frame(&mut self.rx_buffer[..length]);
+        self.rx_count = self.rx_count.wrapping_add(1);
+        let port = self.port;
         let (rx_buffer, tx_buffer) = (&self.rx_buffer[..length], &mut self.tx_buffer);
-        Some((RxToken { buffer: rx_buffer }, TxToken { buffer: tx_buffer }))
+        Some((RxToken { buffer: rx_buffer }, TxToken { port, buffer: tx_buffer }))
     }
 
     fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
-        if self.transmit_busy() {
+        if self.port.transmit_busy() {
             return None;
         }
         Some(TxToken {
+            port: self.port,
             buffer: &mut self.tx_buffer,
         })
     }
@@ -110,22 +127,14 @@ impl<'a> phy::RxToken for RxToken<'a> {
 }
 
 pub struct TxToken<'a> {
+    port: MailMapPort,
     buffer: &'a mut [u8],
 }
 
 impl<'a> phy::TxToken for TxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
         let result = f(&mut self.buffer[..length]);
-        // 送信中はバッファへの書き込みが無視されるため、空くまで待つ。
-        while read_reg(REG_TX_CTRL) != 0 {}
-        // TxToken は送信バッファだけを借りているため、ここでレジスタへ直接書き出す。
-        for offset in (0..length).step_by(4) {
-            let mut word = [0u8; 4];
-            let remain = (length - offset).min(4);
-            word[..remain].copy_from_slice(&self.buffer[offset..offset + remain]);
-            write_reg(REG_TX_DATA + offset / 4, u32::from_le_bytes(word));
-        }
-        write_reg(REG_TX_CTRL, length as u32);
+        self.port.send_frame(&self.buffer[..length]);
         result
     }
 }

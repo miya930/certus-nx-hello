@@ -1,30 +1,40 @@
 #![no_std]
 #![no_main]
 
-mod cfgbus;
-mod clint;
-mod commands;
 mod console;
-mod flash;
-mod mailmap;
-mod mdio;
+mod dp83867;
+mod memory_map;
+mod mt25q;
+mod ports;
+mod satcat5;
 mod settings;
-mod sgr;
-mod switch;
-mod uart;
+mod traffic;
 
-use core::ptr::{read_volatile, write_volatile};
+use neorv32_hal::{gpio::Gpio, mtime::Mtime, pac, spi::Spi, uart::Uart};
 use panic_halt as _;
 use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
-use commands::State;
-use console::Console;
+use console::{commands::State, Console, Style};
+use dp83867::Dp83867;
+use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
+use mt25q::Mt25q;
+use satcat5::mailmap::MailMap;
 use settings::Settings;
+use traffic::Traffic;
 
-const GPIO_PORT_IN: *const u32 = 0xFFFC_0000 as *const u32;
-const GPIO_PORT_OUT: *mut u32 = 0xFFFC_0004 as *mut u32;
+/// コアは、ボードの 25 MHz の SYSTEM_25M_CLK で動く。
+const CLK_HZ: u32 = 25_000_000;
+const CONSOLE_BAUD: u32 = 115_200;
+
+/// この基板の Flash の線は、1 MHz では READ ID が半分ほど失敗し、100 kHz では失敗しなかった。
+const FLASH_SCK_HZ: u32 = 100_000;
+/// Flash は、SPI の 0 番のチップセレクトにつながる。
+const FLASH_CS: u8 = 0;
+
+/// ボードの DP83867 は、PHY アドレス 0 で応答する。
+const DP83867_PHY_ADDR: u32 = 0;
 
 /// GPIO の入力の最下位は、PHY のリセットの解除から MDIO を使えるまでの待ちが終わったことを示す。
 const GPIO_IN_PHY_READY: u32 = 1 << 0;
@@ -35,15 +45,15 @@ const LED_HEARTBEAT: u32 = 1 << 7;
 const LED_RX_SHIFT: u32 = 1;
 const LED_RX_MASK: u32 = 0x3F;
 
-const CONSOLE_BAUD: u32 = 115_200;
 /// リンクは MDIO で読むため、読む間隔をあけて通信の処理を妨げないようにする。
 const LINK_POLL_MSEC: u64 = 500;
 
-fn now() -> Instant {
-    Instant::from_millis(clint::millis() as i64)
+fn now(mtime: &Mtime) -> Instant {
+    Instant::from_millis(mtime.millis() as i64)
 }
 
 /// 設定を smoltcp とスイッチコアに反映する。
+/// ミラーリングは、指定した 1 つのポートだけをプロミスキャスにして実現する。
 fn apply(settings: &Settings, iface: &mut Interface) {
     iface.set_hardware_addr(EthernetAddress(settings.mac).into());
     iface.update_ip_addrs(|addrs| {
@@ -58,66 +68,74 @@ fn apply(settings: &Settings, iface: &mut Interface) {
             .add_default_ipv4_route(Ipv4Address::from(gateway))
             .expect("route table is full");
     }
-    switch::set_mirror(settings.mirror);
+    SWITCH_CORE.set_promiscuous(settings.mirror.map_or(0, |port| 1 << port));
 }
 
 #[riscv_rt::entry]
 fn main() -> ! {
-    uart::init(clint::CLK_HZ, CONSOLE_BAUD);
-    uart::puts("\n");
-    sgr::puts_styled(sgr::BOLD, "Managed switch on NEORV32.");
-    uart::puts(" Type \"help\" for the commands.\n");
+    let peripherals = pac::Peripherals::take().unwrap();
+    let mut console = Console::new(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD));
+    let out = console.output();
+    out.puts("\n");
+    out.puts_styled(Style::HEADING, "Managed switch on NEORV32.");
+    out.puts(" Type \"help\" for the commands.\n");
 
-    flash::init();
-    let saved = Settings::load();
+    let mtime = Mtime::new(peripherals.clint, CLK_HZ);
+    let mut gpio = Gpio::new(peripherals.gpio);
+    let mut flash = Mt25q::new(Spi::new(peripherals.spi, CLK_HZ, FLASH_SCK_HZ, FLASH_CS));
+    let phy = Dp83867::new(MDIO, DP83867_PHY_ADDR);
+
+    let saved = Settings::load(&mut flash);
     if saved.is_none() {
-        sgr::puts_styled(sgr::YELLOW, "No saved settings. Using the defaults.\n");
+        console.output().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
     }
     let mut state = State {
         settings: saved.unwrap_or(settings::DEFAULT),
         saved,
+        traffic: Traffic::new(mtime),
+        flash,
+        phy,
+        mtime,
     };
 
-    while unsafe { read_volatile(GPIO_PORT_IN) } & GPIO_IN_PHY_READY == 0 {}
-    mdio::init_phy();
+    while gpio.read() & GPIO_IN_PHY_READY == 0 {}
+    phy.init();
 
-    let mut device = mailmap::MailMap::new();
+    let mut device = MailMap::new(MAILMAP);
     let config = Config::new(EthernetAddress(state.settings.mac).into());
-    let mut iface = Interface::new(config, &mut device, now());
+    let mut iface = Interface::new(config, &mut device, now(&mtime));
     apply(&state.settings, &mut iface);
 
     // ソケットは開かない。ARP と ICMP の応答は smoltcp が IP の層で処理する。
     let mut storage: [SocketStorage; 1] = Default::default();
     let mut sockets = SocketSet::new(&mut storage[..]);
 
-    let mut console = Console::new();
     console.prompt();
 
     let mut leds = 0;
     let mut next_poll = 0;
 
     loop {
-        iface.poll(now(), &mut device, &mut sockets);
+        iface.poll(now(&mtime), &mut device, &mut sockets);
 
-        while let Some(byte) = uart::get() {
-            if let Some(line) = console.feed(byte, commands::complete) {
-                if commands::execute(line, &mut state) {
-                    apply(&state.settings, &mut iface);
-                }
-                console.prompt();
-            }
+        if console.poll(&mut state) {
+            apply(&state.settings, &mut iface);
         }
 
-        let millis = clint::millis();
+        if state.traffic.due() {
+            state.traffic.sample();
+        }
+
+        let millis = mtime.millis();
         if millis >= next_poll {
             next_poll = millis + LINK_POLL_MSEC;
             leds ^= LED_HEARTBEAT;
             leds &= !LED_LINK;
-            if mdio::phy_status().link {
+            if phy.status().link {
                 leds |= LED_LINK;
             }
         }
         let rx = (device.rx_count & LED_RX_MASK) << LED_RX_SHIFT;
-        unsafe { write_volatile(GPIO_PORT_OUT, leds | rx) };
+        gpio.write(leds | rx);
     }
 }

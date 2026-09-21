@@ -7,8 +7,8 @@ library neorv32;
 
 entity managed_switch is
     generic (
-    IMEM_BYTES      : positive := 32*1024;
-    DMEM_BYTES      : positive := 32*1024;
+    IMEM_BYTES      : positive := 64*1024;
+    DMEM_BYTES      : positive := 16*1024;
     RESET_USEC      : positive := 1_000;
     STARTUP_USEC    : positive := 200_000);
     port (

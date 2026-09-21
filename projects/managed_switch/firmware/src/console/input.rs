@@ -1,8 +1,9 @@
-//! UART の端末から 1 行ずつ入力を受け取る。
-//! 行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
+//! 端末からの入力。1 行ずつ受け取り、行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
+//! 編集中の行は、出力を通して端末に描き直す。
 
-use crate::sgr;
-use crate::uart;
+use super::output::Output;
+use super::style::Style;
+use neorv32_hal::uart::UartRx;
 
 pub const PROMPT: &str = "switch> ";
 pub const LINE_BYTES: usize = 64;
@@ -67,7 +68,8 @@ enum Key {
     Delete,
 }
 
-pub struct Console {
+pub struct Input {
+    rx: UartRx,
     line: Line,
     cursor: usize,
     history: [Line; HISTORY_LINES],
@@ -76,16 +78,17 @@ pub struct Console {
     browse: Option<usize>,
     /// ヒストリーをさかのぼる前に入力していた行。
     draft: Line,
-    /// 確定した行。次の入力が来るまで、呼び出し側に貸す。
+    /// 確定した行。次の行を読むまで、呼び出し側に貸す。
     entered: Line,
     escape: Escape,
     /// CR の直後の LF は、同じ改行の続きとして読み捨てる。
     after_cr: bool,
 }
 
-impl Console {
-    pub const fn new() -> Self {
-        Console {
+impl Input {
+    pub fn new(rx: UartRx) -> Self {
+        Input {
+            rx,
             line: Line::EMPTY,
             cursor: 0,
             history: [Line::EMPTY; HISTORY_LINES],
@@ -98,12 +101,22 @@ impl Console {
         }
     }
 
-    pub fn prompt(&self) {
-        sgr::puts_styled(sgr::CYAN, PROMPT);
+    pub fn prompt(&self, out: &mut Output) {
+        out.puts_styled(Style::PROMPT, PROMPT);
     }
 
-    /// 受け取った 1 バイトを処理する。行が確定したら、その行を返す。
-    pub fn feed(&mut self, byte: u8, complete: Completer) -> Option<&str> {
+    /// 届いている文字を処理する。行が確定したらその行を返し、確定する前に文字が尽きたら None を返す。
+    pub fn read_line(&mut self, complete: Completer, out: &mut Output) -> Option<&str> {
+        while let Some(byte) = self.rx.read_byte() {
+            if self.feed(byte, complete, out) {
+                return Some(self.entered.as_str());
+            }
+        }
+        None
+    }
+
+    /// 1 バイトを処理し、行が確定したら真を返す。
+    fn feed(&mut self, byte: u8, complete: Completer, out: &mut Output) -> bool {
         let after_cr = self.after_cr;
         self.after_cr = byte == CR;
 
@@ -115,12 +128,12 @@ impl Console {
                     b'O' => Escape::Ss3,
                     _ => Escape::None,
                 };
-                return None;
+                return false;
             }
             Escape::Csi(param) => {
                 if byte.is_ascii_digit() {
                     self.escape = Escape::Csi(param.saturating_mul(10).saturating_add(byte - b'0'));
-                    return None;
+                    return false;
                 }
                 self.escape = Escape::None;
                 let key = match (byte, param) {
@@ -134,9 +147,9 @@ impl Console {
                     _ => None,
                 };
                 if let Some(key) = key {
-                    self.key(key);
+                    self.key(key, out);
                 }
-                return None;
+                return false;
             }
             Escape::Ss3 => {
                 self.escape = Escape::None;
@@ -150,98 +163,104 @@ impl Console {
                     _ => None,
                 };
                 if let Some(key) = key {
-                    self.key(key);
+                    self.key(key, out);
                 }
-                return None;
+                return false;
             }
         }
 
         match byte {
             ESC => self.escape = Escape::Start,
-            CR => return Some(self.enter()),
+            CR => {
+                self.enter(out);
+                return true;
+            }
             LF if after_cr => {}
-            LF => return Some(self.enter()),
-            BACKSPACE | DEL => self.backspace(),
-            TAB => self.complete(complete),
-            CTRL_A => self.key(Key::Home),
-            CTRL_E => self.key(Key::End),
-            CTRL_B => self.key(Key::Left),
-            CTRL_F => self.key(Key::Right),
-            CTRL_P => self.key(Key::Up),
-            CTRL_N => self.key(Key::Down),
-            CTRL_D => self.key(Key::Delete),
+            LF => {
+                self.enter(out);
+                return true;
+            }
+            BACKSPACE | DEL => self.backspace(out),
+            TAB => self.complete(complete, out),
+            CTRL_A => self.key(Key::Home, out),
+            CTRL_E => self.key(Key::End, out),
+            CTRL_B => self.key(Key::Left, out),
+            CTRL_F => self.key(Key::Right, out),
+            CTRL_P => self.key(Key::Up, out),
+            CTRL_N => self.key(Key::Down, out),
+            CTRL_D => self.key(Key::Delete, out),
             CTRL_C => {
-                uart::puts("^C\n");
+                out.puts("^C\n");
                 self.line = Line::EMPTY;
                 self.cursor = 0;
                 self.browse = None;
-                self.prompt();
+                self.prompt(out);
             }
             CTRL_K => {
                 self.line.len = self.cursor;
-                self.refresh();
+                self.refresh(out);
             }
-            CTRL_U => self.remove(0, self.cursor),
+            CTRL_U => self.remove(0, self.cursor, out),
             CTRL_W => {
                 let start = self.word_start(true);
-                self.remove(start, self.cursor);
+                self.remove(start, self.cursor, out);
             }
             CTRL_L => {
                 // 画面を消し、カーソルを左上に戻してから行を描き直す。
-                uart::puts("\x1b[2J\x1b[H");
-                self.refresh();
+                out.puts("\x1b[2J\x1b[H");
+                self.refresh(out);
             }
-            b' '..=b'~' => self.insert(&[byte]),
+            b' '..=b'~' => self.insert(&[byte], out),
             _ => {}
         }
-        None
+        false
     }
 
-    fn key(&mut self, key: Key) {
+    fn key(&mut self, key: Key, out: &mut Output) {
         match key {
-            Key::Left if self.cursor > 0 => self.move_to(self.cursor - 1),
-            Key::Right if self.cursor < self.line.len => self.move_to(self.cursor + 1),
-            Key::Home => self.move_to(0),
-            Key::End => self.move_to(self.line.len),
-            Key::Delete if self.cursor < self.line.len => self.remove(self.cursor, self.cursor + 1),
-            Key::Up => self.browse_history(true),
-            Key::Down => self.browse_history(false),
+            Key::Left if self.cursor > 0 => self.move_to(self.cursor - 1, out),
+            Key::Right if self.cursor < self.line.len => self.move_to(self.cursor + 1, out),
+            Key::Home => self.move_to(0, out),
+            Key::End => self.move_to(self.line.len, out),
+            Key::Delete if self.cursor < self.line.len => self.remove(self.cursor, self.cursor + 1, out),
+            Key::Up => self.browse_history(true, out),
+            Key::Down => self.browse_history(false, out),
             _ => {}
         }
     }
 
     /// 行頭から描き直し、行末の残りを消してから、カーソルを編集位置へ戻す。
-    fn refresh(&self) {
-        uart::put(CR);
-        self.prompt();
-        uart::puts(self.line.as_str());
-        uart::puts("\x1b[K");
-        self.cursor_back(self.line.len - self.cursor);
+    fn refresh(&self, out: &mut Output) {
+        out.put(CR);
+        self.prompt(out);
+        out.puts(self.line.as_str());
+        out.puts("\x1b[K");
+        Self::cursor_back(self.line.len - self.cursor, out);
     }
 
-    fn cursor_back(&self, columns: usize) {
+    fn cursor_back(columns: usize, out: &mut Output) {
         if columns > 0 {
-            uart::puts("\x1b[");
-            uart::put_dec(columns as u32);
-            uart::put(b'D');
+            out.puts("\x1b[");
+            out.put_dec(columns as u32);
+            out.put(b'D');
         }
     }
 
-    fn move_to(&mut self, position: usize) {
+    fn move_to(&mut self, position: usize, out: &mut Output) {
         self.cursor = position;
-        self.refresh();
+        self.refresh(out);
     }
 
-    fn set_line(&mut self, line: Line) {
+    fn set_line(&mut self, line: Line, out: &mut Output) {
         self.line = line;
         self.cursor = line.len;
-        self.refresh();
+        self.refresh(out);
     }
 
-    fn insert(&mut self, text: &[u8]) {
+    fn insert(&mut self, text: &[u8], out: &mut Output) {
         let count = text.len().min(LINE_BYTES - self.line.len);
         if count == 0 {
-            uart::put(BELL);
+            out.put(BELL);
             return;
         }
         let (cursor, len) = (self.cursor, self.line.len);
@@ -252,26 +271,26 @@ impl Console {
         if self.cursor == self.line.len {
             // 行末への追加は、描き直さずにそのまま表示する。
             for &byte in &text[..count] {
-                uart::put(byte);
+                out.put(byte);
             }
         } else {
-            self.refresh();
+            self.refresh(out);
         }
     }
 
-    fn remove(&mut self, start: usize, end: usize) {
+    fn remove(&mut self, start: usize, end: usize, out: &mut Output) {
         if start == end {
             return;
         }
         self.line.bytes.copy_within(end..self.line.len, start);
         self.line.len -= end - start;
         self.cursor = start;
-        self.refresh();
+        self.refresh(out);
     }
 
-    fn backspace(&mut self) {
+    fn backspace(&mut self, out: &mut Output) {
         if self.cursor > 0 {
-            self.remove(self.cursor - 1, self.cursor);
+            self.remove(self.cursor - 1, self.cursor, out);
         }
     }
 
@@ -290,8 +309,8 @@ impl Console {
         start
     }
 
-    fn enter(&mut self) -> &str {
-        uart::puts("\n");
+    fn enter(&mut self, out: &mut Output) {
+        out.puts("\n");
         let line = self.line;
         if !line.as_str().trim().is_empty() {
             let newest = &self.history[0];
@@ -305,17 +324,16 @@ impl Console {
         self.line = Line::EMPTY;
         self.cursor = 0;
         self.entered = line;
-        self.entered.as_str()
     }
 
-    fn browse_history(&mut self, older: bool) {
+    fn browse_history(&mut self, older: bool, out: &mut Output) {
         let next = match (self.browse, older) {
             (None, true) if self.history_count > 0 => Some(0),
             (Some(index), true) if index + 1 < self.history_count => Some(index + 1),
             (Some(0), false) => None,
             (Some(index), false) => Some(index - 1),
             _ => {
-                uart::put(BELL);
+                out.put(BELL);
                 return;
             }
         };
@@ -323,14 +341,15 @@ impl Console {
             self.draft = self.line;
         }
         self.browse = next;
-        self.set_line(match next {
+        let line = match next {
             Some(index) => self.history[index],
             None => self.draft,
-        });
+        };
+        self.set_line(line, out);
     }
 
     /// 候補が 1 つなら単語を完成させ、複数なら共通の部分まで延ばし、それ以上延びなければ一覧を出す。
-    fn complete(&mut self, complete: Completer) {
+    fn complete(&mut self, complete: Completer, out: &mut Output) {
         let start = self.word_start(false);
         let mut candidates: [&'static str; MAX_CANDIDATES] = [""; MAX_CANDIDATES];
         let mut count = 0;
@@ -346,27 +365,27 @@ impl Console {
         }
         let typed = self.cursor - start;
         match count {
-            0 => uart::put(BELL),
+            0 => out.put(BELL),
             1 => {
                 let rest = &candidates[0].as_bytes()[typed..];
-                self.insert(rest);
-                self.insert(b" ");
+                self.insert(rest, out);
+                self.insert(b" ", out);
             }
             _ => {
                 let common = candidates[1..count].iter().fold(candidates[0].len(), |common, word| {
                     common.min(candidates[0].bytes().zip(word.bytes()).take_while(|(a, b)| a == b).count())
                 });
                 if common > typed {
-                    self.insert(&candidates[0].as_bytes()[typed..common]);
+                    self.insert(&candidates[0].as_bytes()[typed..common], out);
                     return;
                 }
-                uart::puts("\n");
+                out.puts("\n");
                 for word in &candidates[..count] {
-                    uart::puts(word);
-                    uart::puts("  ");
+                    out.puts(word);
+                    out.puts("  ");
                 }
-                uart::puts("\n");
-                self.refresh();
+                out.puts("\n");
+                self.refresh(out);
             }
         }
     }
