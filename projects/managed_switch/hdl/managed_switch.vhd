@@ -23,6 +23,11 @@ entity managed_switch is
     rgmii_mdio_clk  : out std_logic;
     rgmii_mdio_data : out std_logic;
     rgmii_rst_n     : out std_logic;
+    rmii_ref_clk    : in  std_logic;
+    rmii_txd        : out std_logic_vector(1 downto 0);
+    rmii_txen       : out std_logic;
+    rmii_rxd        : in  std_logic_vector(1 downto 0);
+    rmii_crs_dv     : in  std_logic;
     clk_customer2   : in  std_logic;
     system_25m_clk  : in  std_logic;
     pushbutton3     : in  std_logic;
@@ -65,14 +70,30 @@ constant RGMIICTL_VALUE : natural := 16#00D3#;
 constant REG_RGMIIDCTL   : natural := 16#0086#;
 constant RGMIIDCTL_VALUE : natural := 16#0077#;
 
+-- LAN8720 のモジュールは 50 MHz の発振器を持ち、LAN8720 と FPGA が同じ REF_CLK を受ける。
+-- LAN8720 の受信データは、REF_CLK の立ち上がりの TOHOLD 後から TOVAL 後まで変化する。
+-- FPGA の入力レジスタのホールド時間 TH は TOHOLD より長いため、入力遅延 d を入れて立ち上がりで取り込む。
+-- ホールドには TH - d <= TOHOLD、セットアップには TOVAL + TSU + d <= 周期が必要で、d をその中央に置く。
+-- LAN8720 の値は REF_CLK In Mode のもので、Certus-NX の値は -8 で専用のクロック入力を PLL なしで使う場合のものである。
+-- PMOD の REF_CLK は一般のピンから入るため、実機での確認が必要である。
+constant RMII_CLK_HZ            : positive := 50_000_000;
+constant RMII_PERIOD_NSEC       : real := 1.0e9 / real(RMII_CLK_HZ);
+constant LAN8720_TOVAL_NSEC     : real := 14.0;
+constant LAN8720_TOHOLD_NSEC    : real := 3.0;
+constant FPGA_TSU_NSEC          : real := 0.0;
+constant FPGA_TH_NSEC           : real := 3.32;
+constant RMII_RXDAT_DELAY_NSEC  : real :=
+    ((FPGA_TH_NSEC - LAN8720_TOHOLD_NSEC) + (RMII_PERIOD_NSEC - LAN8720_TOVAL_NSEC - FPGA_TSU_NSEC)) / 2.0;
+
 -- ConfigBus のデバイス番号。CPU から見たアドレスは、番号を 12 ビット左に寄せた位置に並ぶ。
 constant DEV_SWITCH     : integer := 0;
 constant DEV_MAILMAP    : integer := 1;
 
--- スイッチのポートは、PHY につながる RGMII と、CPU につながる mailmap の 2 つである。
-constant PORT_TOTAL     : positive := 2;
-constant PORT_PHY       : natural := 0;
-constant PORT_CPU       : natural := 1;
+-- スイッチのポートは、DP83867 につながる RGMII、LAN8720 につながる RMII、CPU につながる mailmap の 3 つである。
+constant PORT_TOTAL     : positive := 3;
+constant PORT_RGMII     : natural := 0;
+constant PORT_RMII      : natural := 1;
+constant PORT_CPU       : natural := 2;
 
 -- 最初の書き込みまでの待ちは、起動の待ちで足りているため 0 ms にする。
 function mdio_write(reg, value : natural) return std_logic_vector is
@@ -168,7 +189,7 @@ u_mdio : entity work.config_mdio_rom
     reset_p     => startup_p);
 
 -- 送信と受信のクロックのずれは PHY が作るため、FPGA 側では遅延を入れない。
-u_phy : entity work.port_rgmii
+u_rgmii : entity work.port_rgmii
     generic map(
     RXCLK_DELAY => -1.0,
     RXDAT_DELAY => -1.0)
@@ -179,12 +200,36 @@ u_phy : entity work.port_rgmii
     rgmii_rxc   => rgmii_rxclk,
     rgmii_rxd   => rgmii_rxd,
     rgmii_rxctl => rgmii_rxctrl,
-    rx_data     => rx_data(PORT_PHY),
-    tx_data     => tx_data(PORT_PHY),
-    tx_ctrl     => tx_ctrl(PORT_PHY),
+    rx_data     => rx_data(PORT_RGMII),
+    tx_data     => tx_data(PORT_RGMII),
+    tx_ctrl     => tx_ctrl(PORT_RGMII),
     clk_125     => clk_customer2,
     clk_txc     => clk_customer2,
     reset_p     => startup_p);
+
+-- 送信データは REF_CLK の立ち上がりで出す。
+-- FPGA の出力の遅れを足しても、次の立ち上がりまでに LAN8720 のセットアップ時間が残る。
+-- RXER は使わず、受信の誤りはスイッチコアが FCS で見つける。
+-- REF_CLK が止まったことを検出するため、別のクロックとして SYSTEM_25M_CLK を使う。
+u_rmii : entity work.port_rmii
+    generic map(
+    MODE_CLKOUT => false,
+    MODE_CLKDDR => false,
+    RXDAT_DELAY => RMII_RXDAT_DELAY_NSEC)
+    port map(
+    rmii_txd    => rmii_txd,
+    rmii_txen   => rmii_txen,
+    rmii_txer   => open,
+    rmii_rxd    => rmii_rxd,
+    rmii_rxen   => rmii_crs_dv,
+    rmii_rxer   => '0',
+    rmii_clkin  => rmii_ref_clk,
+    rmii_clkout => open,
+    rx_data     => rx_data(PORT_RMII),
+    tx_data     => tx_data(PORT_RMII),
+    tx_ctrl     => tx_ctrl(PORT_RMII),
+    lock_refclk => system_25m_clk,
+    reset_p     => reset_p);
 
 -- ConfigBus のコマンドは全デバイスに配り、応答はまとめて CPU へ返す。
 cfg_ack <= cfgbus_merge(ack_switch, ack_mailmap);

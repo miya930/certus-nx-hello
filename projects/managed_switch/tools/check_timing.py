@@ -6,11 +6,11 @@ Usage:
 
 nextpnr-nexus の --freq は設計全体に 1 つの目標しか与えられない。
 PDC の create_clock も --sdc も内部のクロック網には届かず、制約は既定値のままになる。
-この設計は RGMII の 125 MHz と、スイッチコアと CPU の 25 MHz の 2 つを持つため、
-合成前の目標を高いほうに合わせ、実際の要求はここで確かめる。
+この設計は RGMII の 125 MHz、RMII の 50 MHz、スイッチコアと CPU の 25 MHz を持つため、
+合成前の目標を一番高い 125 MHz に合わせ、実際の要求はここで確かめる。
 
-クロックの名前は、トップの信号名から合成時に作られる。
-信号名を変えたときは、この表も直す。
+クロックの名前は、トップの信号名とポートの番号から合成時に作られる。
+信号名やポートの番号を変えたときは、この表も直す。
 """
 
 from __future__ import annotations
@@ -18,19 +18,13 @@ from __future__ import annotations
 import json
 import sys
 
-# 接頭辞と、そのクロックに必要な周波数 (MHz)。
+# クロックの名前と、そのクロックに必要な周波数 (MHz)。
 REQUIRED_MHZ = {
-    "rx_data": 125.0,   # RGMII の受信
-    "tx_ctrl": 125.0,   # RGMII の送信
-    "cfg_cmd": 25.0,    # スイッチコア、ConfigBus、CPU
+    "rx_data[0]$glb_clk": 125.0,    # RGMII の受信
+    "tx_ctrl[0]$glb_clk": 125.0,    # RGMII の送信
+    "rx_data[125]$glb_clk": 50.0,   # RMII の送受信
+    "cfg_cmd[0]$glb_clk": 25.0,     # スイッチコア、ConfigBus、CPU
 }
-
-
-def required(clock: str) -> float | None:
-    for prefix, mhz in REQUIRED_MHZ.items():
-        if clock.startswith(prefix):
-            return mhz
-    return None
 
 
 def main() -> None:
@@ -42,7 +36,7 @@ def main() -> None:
 
     for clock, result in sorted(fmax.items()):
         achieved = result["achieved"]
-        need = required(clock)
+        need = REQUIRED_MHZ.get(clock)
         if need is None:
             unknown.append(clock)
         elif achieved < need:

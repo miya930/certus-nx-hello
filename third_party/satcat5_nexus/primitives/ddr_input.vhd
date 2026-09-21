@@ -44,7 +44,6 @@ component DELAYA
     generic (
     DEL_MODE            : string := "USER_DEFINED";
     DEL_VALUE           : natural := 0;
-    COARSE_DELAY_MODE   : string := "STATIC";
     COARSE_DELAY        : string := "0NS");
     port (
     A           : in  std_logic;
@@ -66,6 +65,7 @@ begin
 
 -- nextpnr-nexus は遅延量を直接指定する USER_DEFINED だけに対応するため、DELAY_NSEC を段数に換算する。
 -- 遅延量を動的に変える端子は、3.3 V の I/O セルに配線がなく配置配線が失敗するため、宣言しない。
+-- COARSE_DELAY_MODE も 3.3 V の I/O セルには設定がなく、prjoxide がビットストリームを作れないため、宣言しない。
 gen_delay : if DELAY_NSEC >= 0.0 generate
     u_delay : DELAYA
         generic map(
