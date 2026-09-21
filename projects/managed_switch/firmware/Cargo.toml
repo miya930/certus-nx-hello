@@ -6,11 +6,9 @@ edition = "2021"
 [dependencies]
 riscv-rt = { version = "0.18", features = ["single-hart"] }
 panic-halt = "1.0"
-# 端末の UART を共有するために critical-section を使い、単一ハートの実装を riscv から取る。
+# PAC の Peripherals::take は critical-section で一度だけ周辺を渡すため、単一ハートの実装を riscv から取る。
 riscv = { version = "0.16", features = ["critical-section-single-hart"] }
-critical-section = "1"
 embedded-hal = "1"
-embedded-io = "0.7"
 neorv32-hal = { path = "../../../crates/neorv32-hal" }
 
 [dependencies.smoltcp]

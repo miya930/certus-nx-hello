@@ -16,20 +16,20 @@ pub struct Mt25q<S> {
     spi: S,
 }
 
-/// 命令と 3 バイトのアドレス。128 Mbit の Flash は 3 バイトで全体を指せる。
-fn command(op: u8, address: u32) -> [u8; 4] {
-    let [_, high, middle, low] = address.to_be_bytes();
-    [op, high, middle, low]
-}
-
 impl<S: SpiDevice> Mt25q<S> {
     pub fn new(spi: S) -> Self {
         Mt25q { spi }
     }
 
+    /// 命令と 3 バイトのアドレス。128 Mbit の Flash は 3 バイトで全体を指せる。
+    fn command(op: u8, address: u32) -> [u8; 4] {
+        let [_, high, middle, low] = address.to_be_bytes();
+        [op, high, middle, low]
+    }
+
     pub fn read(&mut self, address: u32, buffer: &mut [u8]) -> Result<(), S::Error> {
         self.spi
-            .transaction(&mut [Operation::Write(&command(READ, address)), Operation::Read(buffer)])
+            .transaction(&mut [Operation::Write(&Self::command(READ, address)), Operation::Read(buffer)])
     }
 
     fn write_enable(&mut self) -> Result<(), S::Error> {
@@ -50,14 +50,14 @@ impl<S: SpiDevice> Mt25q<S> {
     /// 4 KB の区画を消し、全てのバイトを 0xFF にする。
     pub fn erase_subsector(&mut self, address: u32) -> Result<(), S::Error> {
         self.write_enable()?;
-        self.spi.write(&command(SUBSECTOR_ERASE_4KB, address))?;
+        self.spi.write(&Self::command(SUBSECTOR_ERASE_4KB, address))?;
         self.wait_ready()
     }
 
     pub fn program(&mut self, address: u32, data: &[u8]) -> Result<(), S::Error> {
         self.write_enable()?;
         self.spi
-            .transaction(&mut [Operation::Write(&command(PAGE_PROGRAM, address)), Operation::Write(data)])?;
+            .transaction(&mut [Operation::Write(&Self::command(PAGE_PROGRAM, address)), Operation::Write(data)])?;
         self.wait_ready()
     }
 }

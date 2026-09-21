@@ -37,19 +37,19 @@ const RECORD_BYTES: usize = 25;
 const CRC_BYTES: usize = 4;
 const _: () = assert!(RECORD_BYTES <= mt25q::PAGE_BYTES);
 
-/// CRC-32 は Ethernet の FCS と同じ多項式を、ビットごとに計算する。
-fn crc32(data: &[u8]) -> u32 {
-    let mut crc = !0u32;
-    for &byte in data {
-        crc ^= byte as u32;
-        for _ in 0..8 {
-            crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
-        }
-    }
-    !crc
-}
-
 impl Settings {
+    /// CRC-32 は Ethernet の FCS と同じ多項式を、ビットごとに計算する。
+    fn crc32(data: &[u8]) -> u32 {
+        let mut crc = !0u32;
+        for &byte in data {
+            crc ^= byte as u32;
+            for _ in 0..8 {
+                crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+            }
+        }
+        !crc
+    }
+
     fn encode(&self) -> [u8; RECORD_BYTES] {
         let mut record = [0; RECORD_BYTES];
         record[0..4].copy_from_slice(&MAGIC);
@@ -59,14 +59,14 @@ impl Settings {
         record[15] = if self.gateway.is_some() { 1 } else { NONE };
         record[16..20].copy_from_slice(&self.gateway.unwrap_or([NONE; 4]));
         record[20] = self.mirror.unwrap_or(NONE);
-        let crc = crc32(&record[..RECORD_BYTES - CRC_BYTES]);
+        let crc = Self::crc32(&record[..RECORD_BYTES - CRC_BYTES]);
         record[RECORD_BYTES - CRC_BYTES..].copy_from_slice(&crc.to_le_bytes());
         record
     }
 
     fn decode(record: &[u8; RECORD_BYTES]) -> Option<Settings> {
         let (body, crc) = record.split_at(RECORD_BYTES - CRC_BYTES);
-        if body[0..4] != MAGIC || crc32(body).to_le_bytes() != crc {
+        if body[0..4] != MAGIC || Self::crc32(body).to_le_bytes() != crc {
             return None;
         }
         let mirror = match record[20] {

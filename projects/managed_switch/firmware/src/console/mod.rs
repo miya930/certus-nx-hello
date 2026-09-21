@@ -2,46 +2,46 @@
 
 pub mod commands;
 mod input;
-pub mod output;
-pub mod style;
+mod output;
+mod style;
 
-use commands::State;
-use core::cell::RefCell;
-use critical_section::Mutex;
-use input::LineEditor;
+pub use output::Output;
+pub use style::Style;
+
+use commands::{Commands, State};
+use input::Input;
 use neorv32_hal::uart::Uart;
 
-/// 入力と出力のどちらも使うため、UART は起動時に受け取って共有する。
-static UART: Mutex<RefCell<Option<Uart>>> = Mutex::new(RefCell::new(None));
-
-pub fn init(uart: Uart) {
-    critical_section::with(|cs| UART.borrow_ref_mut(cs).replace(uart));
-}
-
-fn with_uart<R>(f: impl FnOnce(&mut Uart) -> R) -> R {
-    critical_section::with(|cs| f(UART.borrow_ref_mut(cs).as_mut().expect("console::init was not called")))
-}
-
+/// UART の受信は入力が、送信は出力が持つ。
 pub struct Console {
-    editor: LineEditor,
+    input: Input,
+    output: Output,
 }
 
 impl Console {
-    /// プロンプトを出して、入力を待ち始める。
-    pub fn new() -> Self {
-        let editor = LineEditor::new();
-        editor.prompt();
-        Console { editor }
+    pub fn new(uart: Uart) -> Self {
+        let (tx, rx) = uart.split();
+        Console {
+            input: Input::new(rx),
+            output: Output::new(tx),
+        }
+    }
+
+    /// 起動時の知らせのように、コマンドの外から端末に書くときに使う。
+    pub fn output(&mut self) -> &mut Output {
+        &mut self.output
+    }
+
+    pub fn prompt(&mut self) {
+        self.input.prompt(&mut self.output);
     }
 
     /// 端末から届いた文字を全て処理する。設定を変えるコマンドを実行したときは真を返す。
     pub fn poll(&mut self, state: &mut State) -> bool {
         let mut changed = false;
-        while let Some(byte) = input::get() {
-            if let Some(line) = self.editor.feed(byte, commands::complete) {
-                changed |= commands::execute(line, state);
-                self.editor.prompt();
-            }
+        while let Some(line) = self.input.read_line(Commands::complete, &mut self.output) {
+            changed |= Commands::new(state, &mut self.output).execute(line);
+            self.input.prompt(&mut self.output);
         }
         changed
     }

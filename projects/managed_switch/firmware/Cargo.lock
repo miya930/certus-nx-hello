@@ -224,9 +224,7 @@ checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 name = "managed_switch_firmware"
 version = "0.1.0"
 dependencies = [
- "critical-section",
  "embedded-hal",
- "embedded-io",
  "neorv32-hal",
  "panic-halt",
  "riscv",

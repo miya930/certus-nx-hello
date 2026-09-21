@@ -16,7 +16,7 @@ use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
-use console::{commands::State, output, style, Console};
+use console::{commands::State, Console, Style};
 use dp83867::Dp83867;
 use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
 use mt25q::Mt25q;
@@ -74,10 +74,11 @@ fn apply(settings: &Settings, iface: &mut Interface) {
 #[riscv_rt::entry]
 fn main() -> ! {
     let peripherals = pac::Peripherals::take().unwrap();
-    console::init(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD));
-    output::puts("\n");
-    style::puts_styled(style::BOLD, "Managed switch on NEORV32.");
-    output::puts(" Type \"help\" for the commands.\n");
+    let mut console = Console::new(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD));
+    let out = console.output();
+    out.puts("\n");
+    out.puts_styled(Style::HEADING, "Managed switch on NEORV32.");
+    out.puts(" Type \"help\" for the commands.\n");
 
     let mtime = Mtime::new(peripherals.clint, CLK_HZ);
     let mut gpio = Gpio::new(peripherals.gpio);
@@ -86,7 +87,7 @@ fn main() -> ! {
 
     let saved = Settings::load(&mut flash);
     if saved.is_none() {
-        style::puts_styled(style::YELLOW, "No saved settings. Using the defaults.\n");
+        console.output().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
     }
     let mut state = State {
         settings: saved.unwrap_or(settings::DEFAULT),
@@ -109,7 +110,7 @@ fn main() -> ! {
     let mut storage: [SocketStorage; 1] = Default::default();
     let mut sockets = SocketSet::new(&mut storage[..]);
 
-    let mut console = Console::new();
+    console.prompt();
 
     let mut leds = 0;
     let mut next_poll = 0;
