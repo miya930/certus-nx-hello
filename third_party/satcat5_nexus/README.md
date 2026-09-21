@@ -33,6 +33,7 @@ SatCat5 の Lattice 向けの同期回路 `ice40_sync.vhd` は、SB_DFFR 以外�
 SatCat5 の作業ツリーは書き換えない。
 
 - `switch_core.vhd.patch` は、シミュレーションで同じエッジのデータを取り込まないよう、ポートのクロックを直接渡す。
+- `port_rmii.vhd.patch` は、受信データに入力遅延を入れる設定を追加する。
 - `port_rgmii.vhd.patch` は、送信クロックの分周にある剰余の演算を、比較と条件分岐で書き換える。
   剰余の演算は除算器になり、125 MHz に届かないためである。
 

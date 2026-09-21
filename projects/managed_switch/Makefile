@@ -46,8 +46,8 @@ $(BUILD)/managed_switch.json: $(VHDL) Makefile
 		 synth_nexus -top managed_switch -json $@"
 
 # --freq は設計全体に 1 つの目標しか与えられず、PDC の create_clock も --sdc も内部のクロック網に届かない。
-# この設計は RGMII の 125 MHz と、スイッチコアと CPU の 25 MHz を持つため、目標を高いほうに合わせる。
-# 25 MHz の回路まで 125 MHz で評価されるので失敗を許し、クロックごとの要求は check_timing.py で確かめる。
+# この設計は RGMII の 125 MHz、RMII の 50 MHz、スイッチコアと CPU の 25 MHz を持つため、目標を一番高い 125 MHz に合わせる。
+# 遅いクロックの回路まで 125 MHz で評価されるので失敗を許し、クロックごとの要求は check_timing.py で確かめる。
 $(BUILD)/managed_switch.fasm: $(BUILD)/managed_switch.json hdl/managed_switch.pdc tools/check_timing.py
 	nextpnr-nexus --device $(DEVICE) --pdc hdl/managed_switch.pdc --freq 125 --timing-allow-fail --json $< \
 		--fasm $@ --report $(BUILD)/report.json -l $(BUILD)/nextpnr.log -q

@@ -16,6 +16,15 @@ ldc_set_location -site {L2} [get_ports rgmii_mdio_clk]
 ldc_set_location -site {M1} [get_ports rgmii_mdio_data]
 ldc_set_location -site {M2} [get_ports rgmii_rst_n]
 
+# LAN8720 のモジュールは PMOD の J5 につなぐ。
+ldc_set_location -site {J11} [get_ports rmii_ref_clk]
+ldc_set_location -site {J12} [get_ports rmii_crs_dv]
+ldc_set_location -site {K11} [get_ports {rmii_rxd[0]}]
+ldc_set_location -site {K12} [get_ports {rmii_rxd[1]}]
+ldc_set_location -site {C8} [get_ports rmii_txen]
+ldc_set_location -site {C7} [get_ports {rmii_txd[0]}]
+ldc_set_location -site {B7} [get_ports {rmii_txd[1]}]
+
 ldc_set_location -site {H13} [get_ports clk_customer2]
 ldc_set_location -site {F16} [get_ports system_25m_clk]
 ldc_set_location -site {J16} [get_ports pushbutton3]
@@ -48,6 +57,17 @@ ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {rgmii_rxd[3]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rgmii_mdio_clk]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rgmii_mdio_data]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rgmii_rst_n]
+
+# Bank 2 の電源は 3.3 V に固定されている。
+# RXD0、RXD1、CRS_DV は LAN8720 のモードを決めるストラップを兼ね、LAN8720 の内部でプルアップされている。
+# LAN8720 がリセットのたびに既定のモードを読めるよう、FPGA 側もプルアップにする。
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rmii_ref_clk]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports rmii_crs_dv]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports {rmii_rxd[0]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports {rmii_rxd[1]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rmii_txen]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {rmii_txd[0]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {rmii_txd[1]}]
 
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports clk_customer2]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports system_25m_clk]
