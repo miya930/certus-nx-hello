@@ -5,14 +5,14 @@ use     work.common_functions.all;
 use     work.eth_frame_common.all;
 use     work.switch_types.all;
 
-entity rmii_switch_tb is
-end rmii_switch_tb;
+entity vlan_ptp_switch_tb is
+end vlan_ptp_switch_tb;
 
-architecture tb of rmii_switch_tb is
+architecture tb of vlan_ptp_switch_tb is
 
 constant PORT_COUNT     : positive := 4;
 
--- rmii_switch と同じ値にする。
+-- vlan_ptp_switch と同じ値にする。
 constant CORE_CLK_HZ    : natural := 50_000_000;
 constant CFG_DEV_ADDR   : natural := 0;
 
@@ -85,7 +85,7 @@ begin
 ref_clk <= not ref_clk after 10 ns when not sim_done else ref_clk;
 sys_clk <= not sys_clk after 20 ns when not sim_done else sys_clk;
 
-uut : entity work.rmii_switch
+uut : entity work.vlan_ptp_switch
     generic map(
     PORT_COUNT      => PORT_COUNT)
     port map(

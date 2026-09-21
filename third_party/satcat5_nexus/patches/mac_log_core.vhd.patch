@@ -1,0 +1,15 @@
+--- a/src/vhdl/common/mac_log_core.vhd
++++ b/src/vhdl/common/mac_log_core.vhd
+@@ -142,12 +142,6 @@
+ signal fifo_write   : std_logic;
+ signal fifo_qfull   : std_logic;
+ 
+--- Clock-crossing constraints for selected input signals.
+-attribute satcat5_cross_clock_src : boolean;
+-attribute satcat5_cross_clock_src of port_data : signal is true;
+-attribute satcat5_cross_clock_dst : boolean;
+-attribute satcat5_cross_clock_dst of mask_data : signal is true;
+-
+ begin
+ 
+ -- Microsecond-resolution timestamp counter.

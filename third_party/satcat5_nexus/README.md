@@ -1,0 +1,59 @@
+# SatCat5 を Nexus で使うための層
+
+`third_party/satcat5` の SatCat5 を、Certus-NX で合成してシミュレーションするための層である。
+SatCat5 はプラットフォームごとの部品を外から与える作りになっており、ここに Nexus 向けの実装を置く。
+`projects/` の複数のプロジェクトが、この層を共有する。
+
+## 構成
+
+| ディレクトリ | 内容 |
+|---|---|
+| `primitives/` | SatCat5 のプラットフォーム部品の Nexus 向けの実装 |
+| `patches/` | ビルド時に SatCat5 に当てるパッチ |
+| `sim/` | Nexus のプリミティブのシミュレーションモデル |
+
+`primitives/` と `patches/` は、合成にもシミュレーションにも使う。
+`sim/` はシミュレーションでだけ使い、合成には渡さない。
+
+## プラットフォーム部品
+
+`common_primitives_body.vhd` は、SatCat5 の common_primitives パッケージの本体である。
+FIFO をメモリ方式にし、MAC テーブルの TCAM の LUT 幅を 6 にする。
+シフトレジスタ方式の FIFO は LFD2NX-40 に収まらず、LUT 幅 8 では MAC アドレスを重複して登録したためである。
+
+`clk_input.vhd`、`ddr_input.vhd`、`ddr_output.vhd`、`dpram.vhd` は、SatCat5 が求める部品を Nexus のプリミティブで実装する。
+
+`sb_dffr.vhd` は、iCE40 の SB_DFFR と同じ端子を持つフリップフロップを Nexus のプリミティブで用意する。
+SatCat5 の Lattice 向けの同期回路 `ice40_sync.vhd` は、SB_DFFR 以外に iCE40 固有の記述を持たない。
+このフリップフロップがあれば、同期回路をそのまま使える。
+
+## パッチ
+
+パッチはビルドのたびに `build/patched/` へ当てたコピーを作り、元のファイルの代わりに合成へ渡す。
+SatCat5 の作業ツリーは書き換えない。
+
+- `ptp_egress.vhd.patch` は、GHDL が合成できない、範囲が変わるスライスへの代入を書き換える。
+- `fifo_repack.vhd.patch` は、メモリ方式の FIFO で遅れるメタデータを、レジスタで LAST とそろえる。
+- `switch_core.vhd.patch` は、シミュレーションで同じエッジのデータを取り込まないよう、ポートのクロックを直接渡す。
+- `port_rmii.vhd.patch` は、受信データに入力遅延を入れる設定を追加する。
+- `port_rgmii.vhd.patch` は、送信クロックの分周にある剰余の演算を、比較と条件分岐で書き換える。
+  剰余の演算は除算器になり、125 MHz に届かないためである。
+
+## シミュレーションモデル
+
+`sim/` には、IDDRX1、ODDRX1、DELAYA、FD1P3DX のモデルを置く。
+Nexus のプリミティブは VHDL の実体を持たないため、合成ではブラックボックスとして扱う。
+シミュレーションでは、このモデルで置き換える。
+モデルは技術ノートに書かれた範囲で作っており、出力の遅延は実機と異なる可能性がある。
+
+## 使い方
+
+プロジェクトの Makefile から、次のように参照する。
+
+```make
+NEXUS   := ../../third_party/satcat5_nexus
+PATCHES := $(NEXUS)/patches
+```
+
+合成に渡すファイルには `$(NEXUS)/primitives/*.vhd` を含める。
+シミュレーションでは、これに加えて `$(NEXUS)/sim/*.vhd` を含める。

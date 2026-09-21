@@ -3,7 +3,7 @@
 LFD2NX-40 に SatCat5 のスイッチを実装し、RMII の PHY をつなぐ Ethernet スイッチとして使う。
 VLAN と PTP を有効にし、どの RMII ポートからでも Ethernet フレームで設定を変えられる。
 実機はまだないため、テストベンチと合成、配置配線で動作と回路規模を確認している。
-PHY 基板の仕様は、[3 ポート RMII PHY 基板](../rmii_phy_board/README.md) にまとめている。
+PHY 基板の仕様は、[3 ポート Ethernet PHY 基板](../../hw/multi_phy_board/README.md) にまとめている。
 
 ## 構成
 
@@ -15,12 +15,11 @@ PHY 基板の仕様は、[3 ポート RMII PHY 基板](../rmii_phy_board/README.
 
 | ファイル | 内容 |
 |---|---|
-| `rmii_switch.vhd` | トップ |
-| `rmii_switch_tb.vhd` | テストベンチ |
-| `rmii_switch.pdc` | ピン割り当て |
-| `nexus/` | SatCat5 のプラットフォーム部品の Nexus 向けの実装 |
-| `nexus/sim/` | Nexus のプリミティブのシミュレーションモデル |
-| `patches/` | ビルド時に SatCat5 に当てるパッチ |
+| `vlan_ptp_switch.vhd` | トップ |
+| `vlan_ptp_switch_tb.vhd` | テストベンチ |
+| `vlan_ptp_switch.pdc` | ピン割り当て |
+
+SatCat5 を Nexus で使うための部品とパッチは、[SatCat5 を Nexus で使うための層](../../third_party/satcat5_nexus/README.md) にまとめている。
 
 ## 設計
 
@@ -36,18 +35,9 @@ PHY 基板の仕様は、[3 ポート RMII PHY 基板](../rmii_phy_board/README.
 - 送信データは、REF_CLK の立ち上がりで出す。
 - 受信データは、I/O の遅延素子を通してから、I/O セルの入力レジスタで取り込む。
 - 遅延量は、LAN8742A の出力の変化する期間と Certus-NX の入力レジスタの条件から求めた範囲の中央にする。
-  求め方は `rmii_switch.vhd` のコメントにある。
+  求め方は `vlan_ptp_switch.vhd` のコメントにある。
 - 計算に使った Certus-NX の値は専用のクロック入力ピンでの値で、PMOD の REF_CLK は一般のピンである。
   そのため、受信のマージンは実機で確認する必要がある。
-
-### SatCat5 を Nexus で使うための対処
-
-- `nexus/common_primitives_body.vhd` で、FIFO をメモリ方式にし、MAC テーブルの TCAM の LUT 幅を 6 にする。
-  シフトレジスタ方式の FIFO は LFD2NX-40 に収まらず、LUT 幅 8 では MAC アドレスを重複して登録したためである。
-- `patches/ptp_egress.vhd.patch` は、GHDL が合成できない、範囲が変わるスライスへの代入を書き換える。
-- `patches/fifo_repack.vhd.patch` は、メモリ方式の FIFO で遅れるメタデータを、レジスタで LAST とそろえる。
-- `patches/switch_core.vhd.patch` は、シミュレーションで同じエッジのデータを取り込まないよう、ポートのクロックを直接渡す。
-- `patches/port_rmii.vhd.patch` は、受信データに入力遅延を入れる設定を追加する。
 
 ## 検証
 
@@ -59,16 +49,14 @@ PHY 基板の仕様は、[3 ポート RMII PHY 基板](../rmii_phy_board/README.
 - PTP の Sync は、スイッチ内の滞在時間が correctionField に加えられ、FCS が付け直されて送られる。
 - VLAN のポートマスクに含まれないポートには、そのタグのフレームが送られず、出力ではタグが取り除かれる。
 
-Nexus のプリミティブのモデルは、技術ノートに書かれた範囲で作っており、出力の遅延は実機と異なる可能性がある。
-
 ## 回路規模
 
 ### 測定条件
 
 - デバイスは LFD2NX-40-8BG256C である。
-- SatCat5 は release/2.9.0 に、`patches/` のパッチを当てたものを使った。
+- SatCat5 は release/2.9.0 に、`third_party/satcat5_nexus/patches/` のパッチを当てたものを使った。
 - ツールは OSS CAD Suite 2026-09-12 に含まれる yosys 0.69+24、nextpnr-0.11.1-26、GHDL 7.0.0-dev を使った。
-- スイッチの構成は `rmii_switch.vhd` のとおりで、VLAN と PTP を有効にし、ConfigBus は内部ポートから操作する。
+- スイッチの構成は `vlan_ptp_switch.vhd` のとおりで、VLAN と PTP を有効にし、ConfigBus は内部ポートから操作する。
 - ポート数は RMII ポートの数で、ConfigBus 用の内部ポートを含まない。
 - 使用量は、`make PORT_COUNT=<N>` で配置配線したときに nextpnr-nexus が報告した値である。
 - 内訳は、合成後のネットリストをセル名の階層で集計した。

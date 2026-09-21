@@ -2,8 +2,8 @@ PORT_COUNT ?= 4
 
 DEVICE  := LFD2NX-40-8BG256C
 SATCAT5 := ../../third_party/satcat5/src/vhdl
-PATCHES := patches
-NEXUS   := nexus
+NEXUS   := ../../third_party/satcat5_nexus
+PATCHES := $(NEXUS)/patches
 BUILD   := build/ports$(PORT_COUNT)
 
 # GHDL で合成できない SatCat5 のファイルは、パッチを当てたコピーを元のファイルの代わりに使う。
@@ -13,8 +13,8 @@ PATCHED := $(patsubst $(PATCHES)/%.patch,build/patched/%,$(wildcard $(PATCHES)/*
 VHDL := $(filter-out $(addprefix $(SATCAT5)/common/,$(notdir $(PATCHED))),$(wildcard $(SATCAT5)/common/*.vhd)) \
         $(PATCHED) \
         $(SATCAT5)/lattice/ice40_sync.vhd \
-        $(wildcard $(NEXUS)/*.vhd) \
-        rmii_switch.vhd
+        $(wildcard $(NEXUS)/primitives/*.vhd) \
+        vlan_ptp_switch.vhd
 
 # Nexus のプリミティブは VHDL の実体を持たないため、未結合の警告にとどめてブラックボックスとして yosys に渡す。
 GHDL_FLAGS := --workdir=$(BUILD) --warn-no-binding
@@ -28,27 +28,27 @@ build/patched/%: $(SATCAT5)/common/% $(PATCHES)/%.patch
 # ghdl -m で解析結果をライブラリに保存すると、解析時刻で依存の新旧を判定するため、システム時刻が巻き戻ると失敗する。
 # GHDL には解析順だけを出させ、解析から合成までを yosys の 1 プロセスで行う。
 # VHDL の assert 文は合成後もセルとして残り、nextpnr-nexus が扱えないため、合成の前に取り除く。
-$(BUILD)/rmii_switch.json: $(VHDL) Makefile
+$(BUILD)/vlan_ptp_switch.json: $(VHDL) Makefile
 	mkdir -p $(BUILD)
 	ghdl -i $(GHDL_FLAGS) $(VHDL)
 	yosys -m ghdl -l $(BUILD)/yosys.log -q -p \
-		"ghdl --warn-no-binding -gPORT_COUNT=$(PORT_COUNT) $$(ghdl --elab-order $(GHDL_FLAGS) rmii_switch 2>/dev/null | tr '\n' ' ') -e rmii_switch; \
+		"ghdl --warn-no-binding -gPORT_COUNT=$(PORT_COUNT) $$(ghdl --elab-order $(GHDL_FLAGS) vlan_ptp_switch 2>/dev/null | tr '\n' ' ') -e vlan_ptp_switch; \
 		 chformal -remove; \
-		 synth_nexus -top rmii_switch -json $@"
+		 synth_nexus -top vlan_ptp_switch -json $@"
 
 # PDC の create_clock は入力バッファより先のクロック網に伝わらないため、
 # 全クロックの目標を REF_CLK の 50 MHz にそろえる。25 MHz の SYSTEM_25M_CLK は実際より厳しい条件で確認することになる。
-$(BUILD)/report.json: $(BUILD)/rmii_switch.json rmii_switch.pdc
-	nextpnr-nexus --device $(DEVICE) --pdc rmii_switch.pdc --freq 50 --json $< --report $@ -l $(BUILD)/nextpnr.log -q
+$(BUILD)/report.json: $(BUILD)/vlan_ptp_switch.json vlan_ptp_switch.pdc
+	nextpnr-nexus --device $(DEVICE) --pdc vlan_ptp_switch.pdc --freq 50 --json $< --report $@ -l $(BUILD)/nextpnr.log -q
 
-# シミュレーションでは、Nexus のプリミティブを nexus/sim のモデルで置き換える。
+# シミュレーションでは、Nexus のプリミティブを satcat5_nexus の sim のモデルで置き換える。
 # ghdl -c は解析結果をライブラリに保存しないため、システム時刻が巻き戻っても失敗しない。
-SIM_VHDL := $(VHDL) $(wildcard $(NEXUS)/sim/*.vhd) rmii_switch_tb.vhd
+SIM_VHDL := $(VHDL) $(wildcard $(NEXUS)/sim/*.vhd) vlan_ptp_switch_tb.vhd
 
 sim: $(SIM_VHDL)
 	mkdir -p build/sim
-	ghdl -c --workdir=build/sim -o build/sim/rmii_switch_tb $(SIM_VHDL) -e rmii_switch_tb
-	build/sim/rmii_switch_tb --assert-level=error --ieee-asserts=disable
+	ghdl -c --workdir=build/sim -o build/sim/vlan_ptp_switch_tb $(SIM_VHDL) -e vlan_ptp_switch_tb
+	build/sim/vlan_ptp_switch_tb --assert-level=error --ieee-asserts=disable
 
 clean:
 	rm -rf build
