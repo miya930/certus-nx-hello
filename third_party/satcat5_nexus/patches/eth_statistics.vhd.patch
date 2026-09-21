@@ -11,3 +11,36 @@
  
  -- Clock crossing.
  signal stats_req_rx     : std_logic;
+@@ -396,7 +396,7 @@
+     out_clk     => status_clk);
+ u_pkt_err : sync_toggle2pulse
+     port map(
+-    in_toggle   => err_port.mii_err,
++    in_toggle   => err_port.pkt_err,
+     out_strobe  => evt_pkt_err,
+     out_clk     => status_clk);
+ 
+@@ -428,17 +428,17 @@
+ 
+         -- Working counters are updated after each event.
+         wrk_err_mii      <= accum_err(
+-            wrk_err_mii,    evt_mii_err,    stats_req_tx);
++            wrk_err_mii,    evt_mii_err,    stats_req_st);
+         wrk_err_ovr_tx   <= accum_err(
+-            wrk_err_ovr_tx, evt_ovr_tx,     stats_req_tx);
++            wrk_err_ovr_tx, evt_ovr_tx,     stats_req_st);
+         wrk_err_ovr_rx   <= accum_err(
+-            wrk_err_ovr_rx, evt_ovr_rx,     stats_req_tx);
++            wrk_err_ovr_rx, evt_ovr_rx,     stats_req_st);
+         wrk_err_pkt      <= accum_err(
+-            wrk_err_pkt,    evt_pkt_err,    stats_req_tx);
++            wrk_err_pkt,    evt_pkt_err,    stats_req_st);
+         wrk_err_ptp_tx   <= accum_err(
+-            wrk_err_ptp_tx, evt_ptp_tx_err, stats_req_tx);
++            wrk_err_ptp_tx, evt_ptp_tx_err, stats_req_st);
+         wrk_err_ptp_rx   <= accum_err(
+-            wrk_err_ptp_rx, evt_ptp_rx_err, stats_req_tx);
++            wrk_err_ptp_rx, evt_ptp_rx_err, stats_req_st);
+     end if;
+ end process;
+ 
