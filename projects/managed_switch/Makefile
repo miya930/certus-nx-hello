@@ -15,7 +15,15 @@ PATCHED := $(patsubst $(PATCHES)/%.patch,build/patched/%,$(wildcard $(PATCHES)/*
 
 # NEORV32 は VHDL-2008 で書かれ、自身を neorv32 ライブラリに置くことを前提にしている。
 # SatCat5 も同じライブラリに入れると、両者の work 参照が同じ場所を指す。
+# Nexus のプリミティブは VHDL の実体を持たず、合成ではブラックボックスになるため、結び付かない警告は止める。
 GHDL_FLAGS := --std=08 --work=neorv32 --workdir=$(BUILD) --warn-no-binding
+
+# SatCat5 は、PTP や VLAN などの使わない機能の信号も宣言し、機能を有効にしたときだけ値を入れる。
+# この設計ではそれらの機能を切っているため、合成で値が入らない信号の警告が SatCat5 のファイルから出る。
+# 警告は全て SatCat5 の使わない機能のものなので、合成では止める。
+# GHDL が RAM と ROM を見つけるたびに出す知らせも、警告ではないため止める。
+# NEORV32 が assert 文で出す構成の知らせは、GHDL の選択肢では止められないため、端末に残る。
+SYNTH_FLAGS := --std=08 --work=neorv32 --warn-no-binding -Wno-nowrite --no-notes
 
 # NEORV32 は解析順を file_list_core.f に持っている。
 CORE_VHDL := $(shell sed 's|$$NEORV32_HOME|$(NEORV32)|g' $(NEORV32)/rtl/file_list_core.f)
@@ -41,7 +49,7 @@ $(BUILD)/managed_switch.json: $(VHDL) Makefile
 	mkdir -p $(BUILD)
 	ghdl -i $(GHDL_FLAGS) $(VHDL)
 	yosys -m ghdl -l $(BUILD)/yosys.log -q -p \
-		"ghdl --std=08 --work=neorv32 --warn-no-binding $$(ghdl --elab-order $(GHDL_FLAGS) managed_switch 2>/dev/null | tr '\n' ' ') -e managed_switch; \
+		"ghdl $(SYNTH_FLAGS) $$(ghdl --elab-order $(GHDL_FLAGS) managed_switch 2>/dev/null | tr '\n' ' ') -e managed_switch; \
 		 chformal -remove; \
 		 synth_nexus -top managed_switch -json $@"
 
