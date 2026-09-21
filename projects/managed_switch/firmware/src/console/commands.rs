@@ -15,43 +15,69 @@ struct Command {
     text: &'static str,
     /// 引数と、その形で何をするか。
     forms: &'static [(&'static str, &'static str)],
+    /// 「コマンド help」で出す、そのまま打てる行。
+    examples: &'static [&'static str],
 }
 
 const COMMANDS: [Command; 9] = [
-    Command { name: "help", text: "Show this list.", forms: &[] },
+    Command { name: "help", text: "Show this list.", forms: &[], examples: &[] },
     Command {
         name: "status",
         text: "Show the link state and the load of each port.",
         forms: &[("PORT", "Show the details of one port: rgmii, rmii or cpu.")],
+        examples: &["status rgmii"],
     },
-    Command { name: "stats", text: "Show the traffic since boot.", forms: &[(CLEAR_WORD, "Restart the count.")] },
+    Command {
+        name: "stats",
+        text: "Show the traffic since boot.",
+        forms: &[(CLEAR_WORD, "Restart the count.")],
+        examples: &["stats clear"],
+    },
     Command {
         name: "mac",
         text: "Show the MAC address table.",
         forms: &[(CLEAR_WORD, "Empty the MAC address table.")],
+        examples: &["mac clear"],
     },
-    Command { name: "info", text: "Show the parameters of the switch core and the uptime.", forms: &[] },
-    Command { name: "show", text: "Show the settings.", forms: &[] },
+    Command { name: "info", text: "Show the parameters of the switch core and the uptime.", forms: &[], examples: &[] },
+    Command { name: "show", text: "Show the settings.", forms: &[], examples: &[] },
     Command {
         name: "set",
         text: "List the settings and the values they take.",
-        forms: &[("ITEM VALUE", "Change a setting.")],
+        forms: &[("ITEM VALUE", "Change a setting now. Use \"save\" to keep it.")],
+        examples: &[
+            "set ip 192.168.1.10/24",
+            "set gateway 192.168.1.1",
+            "set gateway none",
+            "set mac 02:00:00:00:00:01",
+            "set mirror rmii",
+            "set mirror none",
+        ],
     },
-    Command { name: "save", text: "Save the settings to the SPI Flash.", forms: &[] },
-    Command { name: "defaults", text: "Restore the default settings. Use \"save\" to keep them.", forms: &[] },
+    Command { name: "save", text: "Save the settings to the SPI Flash.", forms: &[], examples: &[] },
+    Command {
+        name: "defaults",
+        text: "Restore the default settings. Use \"save\" to keep them.",
+        forms: &[],
+        examples: &[],
+    },
 ];
 
-const SET_ITEMS: [(&str, &str); 4] = [
-    ("ip", "A.B.C.D/N"),
-    ("gateway", "A.B.C.D | none"),
-    ("mac", "XX:XX:XX:XX:XX:XX"),
-    ("mirror", "rgmii | rmii | cpu | none"),
+/// set で変えられる設定の名前、値の書式、何を変えるか。
+const SET_ITEMS: [(&str, &str, &str); 4] = [
+    ("ip", "A.B.C.D/N", "IP address and prefix length of the switch"),
+    ("gateway", "A.B.C.D | none", "Default gateway"),
+    ("mac", "XX:XX:XX:XX:XX:XX", "MAC address of the switch, not multicast"),
+    ("mirror", "rgmii | rmii | cpu | none", "Port that also gets every frame"),
 ];
 
 const NONE_WORD: &str = "none";
 const CLEAR_WORD: &str = "clear";
+const HELP_WORD: &str = "help";
 const HELP_COLUMN: usize = 16;
 const DETAIL_COLUMN: usize = 21;
+const SET_ITEM_COLUMN: usize = 9;
+const SET_VALUE_COLUMN: usize = 27;
 
 /// 1 行のコマンドを実行する間だけ、設定、統計、出力を借りる。
 pub struct Commands<'a> {
@@ -76,17 +102,23 @@ impl<'a> Commands<'a> {
     /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映は主ループが行う。
     pub fn execute(&mut self, line: &str) {
         let mut words = line.split_ascii_whitespace();
-        let Some(command) = words.next() else {
+        let (Some(command), argument) = (words.next(), words.next()) else {
             return;
         };
+        // どのコマンドも、引数に help を付けると、形と例を出す。
+        if argument == Some(HELP_WORD) {
+            if let Some(entry) = COMMANDS.iter().find(|entry| entry.name == command) {
+                return self.command_help(entry);
+            }
+        }
         match command {
             "help" => self.help(),
-            "status" => self.status(words.next()),
-            "stats" => self.stats(words.next()),
-            "mac" => self.mac(words.next()),
+            "status" => self.status(argument),
+            "stats" => self.stats(argument),
+            "mac" => self.mac(argument),
             "info" => self.info(),
             "show" => self.show(),
-            "set" => self.set(words.next(), words.next()),
+            "set" => self.set(argument, words.next()),
             "save" => {
                 self.config.save();
                 defmt::info!("Saved the settings to the SPI Flash");
@@ -105,14 +137,22 @@ impl<'a> Commands<'a> {
         let mut words = context.split_ascii_whitespace();
         match (words.next(), words.next(), words.next()) {
             (None, _, _) => COMMANDS.iter().for_each(|command| emit(command.name)),
-            (Some("status"), None, _) => PORT_NAMES.iter().for_each(|name| emit(name)),
-            (Some("set"), None, _) => SET_ITEMS.iter().for_each(|(name, _)| emit(name)),
+            (Some(command), None, _) => {
+                match command {
+                    "status" => PORT_NAMES.iter().for_each(|name| emit(name)),
+                    "set" => SET_ITEMS.iter().for_each(|(name, _, _)| emit(name)),
+                    "stats" | "mac" => emit(CLEAR_WORD),
+                    _ => {}
+                }
+                if COMMANDS.iter().any(|entry| entry.name == command) {
+                    emit(HELP_WORD);
+                }
+            }
             (Some("set"), Some("mirror"), None) => {
                 PORT_NAMES.iter().for_each(|name| emit(name));
                 emit(NONE_WORD);
             }
             (Some("set"), Some("gateway"), None) => emit(NONE_WORD),
-            (Some("stats" | "mac"), None, _) => emit(CLEAR_WORD),
             _ => {}
         }
     }
@@ -128,16 +168,51 @@ impl<'a> Commands<'a> {
 
     fn help(&mut self) {
         for command in &COMMANDS {
-            self.out.puts_styled_padded(Style::HEADING, command.name, HELP_COLUMN);
-            self.out.puts(command.text);
+            self.put_command(command);
+        }
+        self.out.puts("\nType \"COMMAND help\", such as \"set help\", for examples.\n");
+    }
+
+    /// コマンドだけの形と、引数を付けた形を 1 行ずつ出す。
+    fn put_command(&mut self, command: &Command) {
+        self.out.puts_styled_padded(Style::HEADING, command.name, HELP_COLUMN);
+        self.out.puts(command.text);
+        self.out.puts("\n");
+        for &(argument, text) in command.forms {
+            self.out.puts_styled(Style::HEADING, command.name);
+            self.out.put(b' ');
+            self.out.puts_padded(argument, HELP_COLUMN - command.name.len() - 1);
+            self.out.puts(text);
             self.out.puts("\n");
-            for &(argument, text) in command.forms {
-                self.out.puts_styled(Style::HEADING, command.name);
-                self.out.put(b' ');
-                self.out.puts_padded(argument, HELP_COLUMN - command.name.len() - 1);
-                self.out.puts(text);
+        }
+    }
+
+    /// 1 つのコマンドの形と例を出す。set は値の書式がないと打てないため、設定の表も出す。
+    fn command_help(&mut self, command: &Command) {
+        self.put_command(command);
+        if command.name == "set" {
+            self.out.puts("\n");
+            self.put_set_items();
+        }
+        if !command.examples.is_empty() {
+            self.out.puts("\n");
+            self.out.puts_styled(Style::HEADING, "Examples:");
+            self.out.puts("\n");
+            for example in command.examples {
+                self.out.puts("  ");
+                self.out.puts(example);
                 self.out.puts("\n");
             }
+        }
+    }
+
+    fn put_set_items(&mut self) {
+        self.out.header(&[("ITEM", SET_ITEM_COLUMN), ("VALUE", SET_VALUE_COLUMN), ("CHANGES", 0)]);
+        for (name, value, text) in SET_ITEMS {
+            self.out.puts_padded(name, SET_ITEM_COLUMN);
+            self.out.puts_padded(value, SET_VALUE_COLUMN);
+            self.out.puts(text);
+            self.out.puts("\n");
         }
     }
 
@@ -470,13 +545,7 @@ impl<'a> Commands<'a> {
 
     fn set(&mut self, item: Option<&str>, value: Option<&str>) {
         let (Some(item), Some(value)) = (item, value) else {
-            for (name, syntax) in SET_ITEMS {
-                self.out.puts("set ");
-                self.out.puts_padded(name, 8);
-                self.out.puts(syntax);
-                self.out.puts("\n");
-            }
-            return;
+            return self.put_set_items();
         };
         let settings = self.config.current_mut();
         let accepted = match item {
