@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 500" width="1080" height="500" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="13" fill="#222">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#444"/>
+    </marker>
+    <marker id="arrow-copy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1080" height="500" fill="#ffffff"/>
+
+  <!-- 見出し -->
+  <text x="310" y="36" text-anchor="middle" font-size="15" font-weight="bold">SPI Flash (MT25QU128、16 MB)</text>
+  <text x="780" y="36" text-anchor="middle" font-size="15" font-weight="bold">NEORV32 の番地</text>
+
+  <!-- SPI Flash -->
+  <g stroke="#555" stroke-width="1.2">
+    <rect x="200" y="60" width="220" height="90" fill="#e8eef7"/>
+    <rect x="200" y="150" width="220" height="50" fill="#f3f3f3" stroke-dasharray="4 3"/>
+    <rect x="200" y="200" width="220" height="120" fill="#dff0e3" stroke="#2e7d32" stroke-width="2"/>
+    <rect x="200" y="320" width="220" height="60" fill="#f3f3f3" stroke-dasharray="4 3"/>
+    <rect x="200" y="380" width="220" height="70" fill="#fff3d6"/>
+  </g>
+  <g font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="12" fill="#555">
+    <text x="208" y="77">0x000000</text>
+    <text x="208" y="217">0xF00000</text>
+    <text x="208" y="397">0xFFF000</text>
+    <text x="208" y="467">0xFFFFFF まで</text>
+  </g>
+  <text x="310" y="108" text-anchor="middle">FPGA のビットストリーム</text>
+  <text x="310" y="128" text-anchor="middle" font-size="11" fill="#555">約 1 MB</text>
+  <text x="310" y="180" text-anchor="middle" font-size="12" fill="#888">空き</text>
+  <text x="310" y="248" text-anchor="middle" font-weight="bold">ファームウェアの像 (128 KB)</text>
+  <text x="310" y="274" text-anchor="middle" font-size="11" fill="#333">先頭 8 バイト: "IMEM" と長さ</text>
+  <text x="310" y="294" text-anchor="middle" font-size="11" fill="#333">続けて命令メモリの中身</text>
+  <text x="310" y="355" text-anchor="middle" font-size="12" fill="#888">空き</text>
+  <text x="310" y="424" text-anchor="middle">保存した設定 (4 KB)</text>
+  <text x="310" y="442" text-anchor="middle" font-size="11" fill="#555">先頭の 25 バイトを使う</text>
+
+  <!-- Flash に書くもの -->
+  <g font-size="13" text-anchor="middle">
+    <text x="80" y="100" font-family="'DejaVu Sans Mono', Consolas, monospace">make flash</text>
+    <text x="80" y="118" font-size="11" fill="#555">openFPGALoader</text>
+    <text x="80" y="255" font-family="'DejaVu Sans Mono', Consolas, monospace">cargo run</text>
+    <text x="80" y="272" font-size="11" fill="#555">probe-rs と</text>
+    <text x="80" y="287" font-size="11" fill="#555">書き込みプログラム</text>
+    <text x="80" y="410">コンソールの save</text>
+    <text x="80" y="427" font-size="11" fill="#555">ファームウェア</text>
+  </g>
+  <g stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="152" y1="105" x2="198" y2="105"/>
+    <line x1="152" y1="260" x2="198" y2="260"/>
+    <line x1="152" y1="415" x2="198" y2="415"/>
+  </g>
+
+  <!-- probe-rs から見た Flash -->
+  <rect x="455" y="230" width="180" height="70" fill="#eef4fb" stroke="#4a6fa5" stroke-width="1.2"/>
+  <text x="545" y="250" text-anchor="middle" font-size="12">probe-rs の FLASH の範囲</text>
+  <text x="545" y="270" text-anchor="middle" font-size="11" font-family="'DejaVu Sans Mono', Consolas, monospace">0x20F00000 から 128 KB</text>
+  <text x="545" y="289" text-anchor="middle" font-size="11" fill="#555">Flash の位置 + 0x20000000</text>
+  <line x1="422" y1="265" x2="455" y2="265" stroke="#4a6fa5" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- 起動時の写し -->
+  <path d="M420,215 H540 V105 H658" fill="none" stroke="#2e7d32" stroke-width="2.2" marker-end="url(#arrow-copy)"/>
+  <text x="532" y="150" text-anchor="end" font-size="12" fill="#2e7d32">電源投入時に</text>
+  <text x="532" y="167" text-anchor="end" font-size="12" fill="#2e7d32">起動 ROM が写す</text>
+
+  <!-- SPI の線 -->
+  <line x1="422" y1="445" x2="660" y2="445" stroke="#888" stroke-width="1.5"/>
+  <text x="540" y="437" text-anchor="middle" font-size="11" fill="#555">SPI の線 (CS0、約 98 kHz)</text>
+
+  <!-- NEORV32 の番地 -->
+  <g stroke="#555" stroke-width="1.2">
+    <rect x="660" y="60" width="240" height="90" fill="#dff0e3" stroke="#2e7d32" stroke-width="2"/>
+    <rect x="660" y="170" width="240" height="110" fill="#ffffff"/>
+    <rect x="660" y="300" width="240" height="50" fill="#ffffff"/>
+    <rect x="660" y="360" width="240" height="50" fill="#ffffff"/>
+    <rect x="660" y="425" width="240" height="50" fill="#ffffff"/>
+  </g>
+  <g font-family="'DejaVu Sans Mono', Consolas, monospace" font-size="12" fill="#555">
+    <text x="668" y="77">0x00000000</text>
+    <text x="668" y="187">0x80000000</text>
+    <text x="668" y="317">0x90000000</text>
+    <text x="668" y="377">0xFFE00000</text>
+    <text x="668" y="442">0xFFF80000</text>
+  </g>
+  <text x="780" y="112" text-anchor="middle" font-weight="bold">命令メモリ (64 KB)</text>
+  <text x="780" y="212" text-anchor="middle">データメモリ (16 KB)</text>
+  <text x="780" y="240" text-anchor="middle" font-size="11" fill="#333">起動 ROM のスタック: 先頭 1 KB</text>
+  <text x="780" y="262" text-anchor="middle" font-size="11" fill="#333">書き込みプログラム: 0x80000020 から</text>
+  <text x="780" y="338" text-anchor="middle">ConfigBus (スイッチ)</text>
+  <text x="780" y="398" text-anchor="middle">起動 ROM</text>
+  <text x="780" y="463" text-anchor="middle">SPI</text>
+
+  <!-- 命令メモリに書くもの -->
+  <g font-size="13" text-anchor="middle">
+    <text x="1000" y="92" font-family="'DejaVu Sans Mono', Consolas, monospace">cargo run</text>
+    <text x="1000" y="110" font-family="'DejaVu Sans Mono', Consolas, monospace">cargo run-ram</text>
+    <text x="1000" y="128" font-size="11" fill="#555">JTAG で直接</text>
+  </g>
+  <line x1="943" y1="105" x2="902" y2="105" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>
