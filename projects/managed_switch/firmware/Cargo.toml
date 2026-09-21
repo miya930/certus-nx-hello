@@ -3,6 +3,13 @@ name = "managed_switch_firmware"
 version = "0.1.0"
 edition = "2021"
 
+# no_std の対象には test クレートがないため、テストとベンチマークは組み立てられない。
+# rust-analyzer が全ての対象を検査しても失敗しないよう、対象から外す。
+[[bin]]
+name = "managed_switch_firmware"
+test = false
+bench = false
+
 [dependencies]
 riscv-rt = { version = "0.18", features = ["single-hart"] }
 panic-halt = "1.0"

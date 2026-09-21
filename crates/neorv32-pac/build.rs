@@ -21,6 +21,9 @@ fn main() {
         Some(rest) => rest.split_once("\"]").expect("unterminated doc attribute").1,
         None => &code,
     };
+    // rust-analyzer は include! で取り込んだコードの中の write! を解決できず、エラーを出す。
+    // rustc はどちらでも同じに扱うため、core の write! と明示する。
+    let code = code.replace("write ! (", "core :: write ! (");
     let out = Path::new(&env::var("OUT_DIR").unwrap()).join("pac.rs");
     fs::write(out, code).unwrap();
 }
