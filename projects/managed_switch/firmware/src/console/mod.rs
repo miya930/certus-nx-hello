@@ -36,13 +36,11 @@ impl Console {
         self.input.prompt(&mut self.output);
     }
 
-    /// 端末から届いた文字を全て処理する。設定を変えるコマンドを実行したときは真を返す。
-    pub fn poll(&mut self, state: &mut State) -> bool {
-        let mut changed = false;
+    /// 端末から届いた文字を全て処理し、確定した行をコマンドとして実行する。
+    pub fn poll(&mut self, state: &mut State) {
         while let Some(line) = self.input.read_line(Commands::complete, &mut self.output) {
-            changed |= Commands::new(state, &mut self.output).execute(line);
+            Commands::new(state, &mut self.output).execute(line);
             self.input.prompt(&mut self.output);
         }
-        changed
     }
 }

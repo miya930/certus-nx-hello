@@ -104,7 +104,9 @@ fn main() -> ! {
     let mut device = MailMap::new(MAILMAP);
     let config = Config::new(EthernetAddress(state.settings.mac).into());
     let mut iface = Interface::new(config, &mut device, now(&mtime));
-    apply(&state.settings, &mut iface);
+    // コンソールのコマンドは設定を書き換えるだけなので、反映した設定と比べて、変わったときに反映し直す。
+    let mut applied = state.settings;
+    apply(&applied, &mut iface);
 
     // ソケットは開かない。ARP と ICMP の応答は smoltcp が IP の層で処理する。
     let mut storage: [SocketStorage; 1] = Default::default();
@@ -118,8 +120,10 @@ fn main() -> ! {
     loop {
         iface.poll(now(&mtime), &mut device, &mut sockets);
 
-        if console.poll(&mut state) {
-            apply(&state.settings, &mut iface);
+        console.poll(&mut state);
+        if state.settings != applied {
+            applied = state.settings;
+            apply(&applied, &mut iface);
         }
 
         if state.traffic.due() {
