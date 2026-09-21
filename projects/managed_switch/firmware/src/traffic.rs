@@ -1,4 +1,4 @@
-//! ポートの統計を一定の間隔で取り込み、累計と直近の速さを保つ。
+//! ポートの統計を取り込み、ポートごとの送受信の累計と直近の速さを保つ。
 //! 統計のブロックは取り込みのたびに数え直すため、累計はファームウェアが足し込む。
 
 use crate::memory_map::PORT_STATS;
@@ -6,7 +6,7 @@ use crate::ports::{PORT_COUNT, PORT_NAMES};
 use neorv32_hal::mtime::Mtime;
 
 /// 取り込みの間隔。1 秒あたりの数は 32 ビットの数に収まる。
-const SAMPLE_MSEC: u64 = 1000;
+pub const SAMPLE_MSEC: u64 = 1000;
 
 #[derive(Clone, Copy, Default)]
 pub struct Totals {
@@ -43,7 +43,7 @@ impl Traffic {
         }
     }
 
-    /// 前回の取り込みからの数を読み、累計に足す。
+    /// 前回の取り込みからの数を読み、累計に足す。主ループから SAMPLE_MSEC ごとに呼ぶ。
     pub fn sample(&mut self) {
         let now = self.mtime.millis();
         PORT_STATS.refresh(&mut self.mtime);
@@ -69,10 +69,6 @@ impl Traffic {
         }
         self.last_interval_msec = now - self.last_msec;
         self.last_msec = now;
-    }
-
-    pub fn due(&self) -> bool {
-        self.mtime.millis() >= self.last_msec + SAMPLE_MSEC
     }
 
     pub fn clear(&mut self) {
