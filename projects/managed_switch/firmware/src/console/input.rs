@@ -1,8 +1,10 @@
 //! UART の端末から 1 行ずつ入力を受け取る。
 //! 行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
 
-use super::sgr;
-use super::term;
+use super::output;
+use super::style;
+use super::with_uart;
+use embedded_io::{Read, ReadReady};
 
 pub const PROMPT: &str = "switch> ";
 pub const LINE_BYTES: usize = 64;
@@ -29,6 +31,18 @@ const CTRL_U: u8 = 0x15;
 const CTRL_W: u8 = 0x17;
 const ESC: u8 = 0x1B;
 const DEL: u8 = 0x7F;
+
+/// 端末から届いたバイトを 1 つ取り出す。届いていなければ None を返す。
+pub fn get() -> Option<u8> {
+    with_uart(|uart| {
+        let Ok(ready) = uart.read_ready();
+        let mut byte = [0];
+        ready.then(|| {
+            let Ok(_) = uart.read(&mut byte);
+            byte[0]
+        })
+    })
+}
 
 /// 入力中の行の、単語より前の部分を受け取り、その位置に入りうる単語を全て渡す。
 pub type Completer = fn(context: &str, emit: &mut dyn FnMut(&'static str));
@@ -99,7 +113,7 @@ impl LineEditor {
     }
 
     pub fn prompt(&self) {
-        sgr::puts_styled(sgr::CYAN, PROMPT);
+        style::puts_styled(style::CYAN, PROMPT);
     }
 
     /// 受け取った 1 バイトを処理する。行が確定したら、その行を返す。
@@ -171,7 +185,7 @@ impl LineEditor {
             CTRL_N => self.key(Key::Down),
             CTRL_D => self.key(Key::Delete),
             CTRL_C => {
-                term::puts("^C\n");
+                output::puts("^C\n");
                 self.line = Line::EMPTY;
                 self.cursor = 0;
                 self.browse = None;
@@ -188,7 +202,7 @@ impl LineEditor {
             }
             CTRL_L => {
                 // 画面を消し、カーソルを左上に戻してから行を描き直す。
-                term::puts("\x1b[2J\x1b[H");
+                output::puts("\x1b[2J\x1b[H");
                 self.refresh();
             }
             b' '..=b'~' => self.insert(&[byte]),
@@ -212,18 +226,18 @@ impl LineEditor {
 
     /// 行頭から描き直し、行末の残りを消してから、カーソルを編集位置へ戻す。
     fn refresh(&self) {
-        term::put(CR);
+        output::put(CR);
         self.prompt();
-        term::puts(self.line.as_str());
-        term::puts("\x1b[K");
+        output::puts(self.line.as_str());
+        output::puts("\x1b[K");
         self.cursor_back(self.line.len - self.cursor);
     }
 
     fn cursor_back(&self, columns: usize) {
         if columns > 0 {
-            term::puts("\x1b[");
-            term::put_dec(columns as u32);
-            term::put(b'D');
+            output::puts("\x1b[");
+            output::put_dec(columns as u32);
+            output::put(b'D');
         }
     }
 
@@ -241,7 +255,7 @@ impl LineEditor {
     fn insert(&mut self, text: &[u8]) {
         let count = text.len().min(LINE_BYTES - self.line.len);
         if count == 0 {
-            term::put(BELL);
+            output::put(BELL);
             return;
         }
         let (cursor, len) = (self.cursor, self.line.len);
@@ -252,7 +266,7 @@ impl LineEditor {
         if self.cursor == self.line.len {
             // 行末への追加は、描き直さずにそのまま表示する。
             for &byte in &text[..count] {
-                term::put(byte);
+                output::put(byte);
             }
         } else {
             self.refresh();
@@ -291,7 +305,7 @@ impl LineEditor {
     }
 
     fn enter(&mut self) -> &str {
-        term::puts("\n");
+        output::puts("\n");
         let line = self.line;
         if !line.as_str().trim().is_empty() {
             let newest = &self.history[0];
@@ -315,7 +329,7 @@ impl LineEditor {
             (Some(0), false) => None,
             (Some(index), false) => Some(index - 1),
             _ => {
-                term::put(BELL);
+                output::put(BELL);
                 return;
             }
         };
@@ -346,7 +360,7 @@ impl LineEditor {
         }
         let typed = self.cursor - start;
         match count {
-            0 => term::put(BELL),
+            0 => output::put(BELL),
             1 => {
                 let rest = &candidates[0].as_bytes()[typed..];
                 self.insert(rest);
@@ -360,12 +374,12 @@ impl LineEditor {
                     self.insert(&candidates[0].as_bytes()[typed..common]);
                     return;
                 }
-                term::puts("\n");
+                output::puts("\n");
                 for word in &candidates[..count] {
-                    term::puts(word);
-                    term::puts("  ");
+                    output::puts(word);
+                    output::puts("  ");
                 }
-                term::puts("\n");
+                output::puts("\n");
                 self.refresh();
             }
         }

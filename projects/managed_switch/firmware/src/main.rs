@@ -16,7 +16,7 @@ use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
-use console::{commands::State, sgr, term, Console};
+use console::{commands::State, output, style, Console};
 use dp83867::Dp83867;
 use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
 use mt25q::Mt25q;
@@ -74,10 +74,10 @@ fn apply(settings: &Settings, iface: &mut Interface) {
 #[riscv_rt::entry]
 fn main() -> ! {
     let peripherals = pac::Peripherals::take().unwrap();
-    term::init(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD));
-    term::puts("\n");
-    sgr::puts_styled(sgr::BOLD, "Managed switch on NEORV32.");
-    term::puts(" Type \"help\" for the commands.\n");
+    console::init(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD));
+    output::puts("\n");
+    style::puts_styled(style::BOLD, "Managed switch on NEORV32.");
+    output::puts(" Type \"help\" for the commands.\n");
 
     let mtime = Mtime::new(peripherals.clint, CLK_HZ);
     let mut gpio = Gpio::new(peripherals.gpio);
@@ -86,7 +86,7 @@ fn main() -> ! {
 
     let saved = Settings::load(&mut flash);
     if saved.is_none() {
-        sgr::puts_styled(sgr::YELLOW, "No saved settings. Using the defaults.\n");
+        style::puts_styled(style::YELLOW, "No saved settings. Using the defaults.\n");
     }
     let mut state = State {
         settings: saved.unwrap_or(settings::DEFAULT),

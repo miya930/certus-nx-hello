@@ -1,35 +1,12 @@
-//! コンソールの端末への入出力。UART は起動時に渡され、どのモジュールからも文字を出せるように共有する。
+//! 端末への文字と数の出力。どのモジュールからも出せるように、共有した UART に書く。
 
-use core::cell::RefCell;
-use critical_section::Mutex;
-use embedded_io::{Read, ReadReady, Write};
-use neorv32_hal::uart::Uart;
-
-static UART: Mutex<RefCell<Option<Uart>>> = Mutex::new(RefCell::new(None));
-
-pub fn init(uart: Uart) {
-    critical_section::with(|cs| UART.borrow_ref_mut(cs).replace(uart));
-}
-
-fn with_uart<R>(f: impl FnOnce(&mut Uart) -> R) -> R {
-    critical_section::with(|cs| f(UART.borrow_ref_mut(cs).as_mut().expect("term::init was not called")))
-}
+use super::with_uart;
+use embedded_io::Write;
 
 pub fn put(byte: u8) {
     with_uart(|uart| {
         let Ok(()) = uart.write_all(&[byte]);
     });
-}
-
-pub fn get() -> Option<u8> {
-    with_uart(|uart| {
-        let Ok(ready) = uart.read_ready();
-        let mut byte = [0];
-        ready.then(|| {
-            let Ok(_) = uart.read(&mut byte);
-            byte[0]
-        })
-    })
 }
 
 /// 端末は改行に CR と LF の両方を求めるため、LF の前に CR を足す。

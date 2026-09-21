@@ -1,7 +1,7 @@
 //! コンソールのコマンドを解釈して実行する。
 
-use super::sgr::{puts_styled, puts_styled_padded, BOLD, GREEN, RED, RESET, YELLOW};
-use super::term::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
+use super::output::{put, put_dec, put_dec_padded, put_hex, puts, puts_padded};
+use super::style::{puts_styled, puts_styled_padded, BOLD, GREEN, RED, RESET, YELLOW};
 use crate::dp83867::Dp83867;
 use crate::memory_map::{PORT_STATS, SWITCH_CORE};
 use crate::mt25q::Mt25q;
