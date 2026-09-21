@@ -1,5 +1,7 @@
 //! SPI Flash の Micron MT25QU128 を、SpiDevice の上で読み書きする。
 
+#![no_std]
+
 mod commands;
 
 use commands::*;

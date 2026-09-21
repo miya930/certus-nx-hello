@@ -1,6 +1,8 @@
 # probe-rs に、このコアのメモリの位置を教える。
 # 位置と大きさは hdl/managed_switch.vhd の generic と firmware/memory.x に合わせる。
 # 命令メモリは RAM で、JTAG から書き込んだあとリセットすると、起動 ROM が先頭へ飛ぶ。
+# FLASH は SPI Flash のうち、ファームウェアの像を置く範囲である。
+# 書き込みプログラムは crates/mt25q-flash-algorithm から target-gen elf で作った。
 name: NEORV32
 variants:
 - name: managed_switch
@@ -25,3 +27,37 @@ variants:
       end: 0x80004000
     cores:
     - main
+  - !Nvm
+    name: FLASH
+    range:
+      start: 0x20f00000
+      end: 0x20f20000
+    cores:
+    - main
+  flash_algorithms:
+  - mt25q
+flash_algorithms:
+- name: mt25q
+  description: MT25QU128
+  default: true
+  instructions: twUAgIPFhUyxxUERBsYixCqElwAAAOeAQCYTVYQAwWWThQXwbY3hjWIEogVBjU2NEwUFAirCSACRRZcAAADngGAdlwAAAOeAwB4BRbJAIkRBAYKABUWCgF1xhsaixKbCysBO3lLcNwUAgAVJfRaRRSMEJU1jerYKAUW3BQCAAXbhZqOEJU2hRZOGBmoQQjbCkwnBAALMIxQhAyMFsQIdSjLAQURjaAoCkwQVAKMEkQJKxALGIsgjCqEAaBAKhlQAzoWXAAAA54AgHzJVHeEmheN8mvxiRQLEEwSQPw3FbAhoEAqGVACXAAAA54DgHDJVGckDRQED0lV2BfIFaYHZgU2NEwQVADcF+P8AwTcFAICFRSMEtUwBRbZAJkSWRAZJ8lliWmFhgoCXAAAA54AAFjlxBt4i3CbaStguibcFAICDxYVMqcmyhCqElwAAAOeAwBITVYQAhUVwEJFGLsIyxDbGLszBZZOFBfBtjeGNYgSiBUGNTY0JBSrWJs5K0EgAiUWXAAAA54CgGpcAAADngEAKAUURoAVF8lBiVNJUQlkhYYKAtwYAgIPGhkypxnlxBtaTVoUAQWiTF4UBhUiTAoECEwcI8PmOeY0RR0bAFsI6xALKIgXdjlWNDQUq1DLMLs4KhYlFlwAAAOeAYBQBRbJQRWGCgAVFgoC3BQCAA8WFTAnFAUUjhAVMgoAFRYKAAREGzgVGMsQqxi7IKACFRZcAAADngMAQ8kAFYYKAOXEG3iLcJtpK2AVENwkAgBMJSUqTBHEAowMBACLESsYiyALOJtAi0igAiUWXAAAA54AgDQNFcQAFiXn98lBiVNJUQlkhYYKANwUAgBMFVUqFRRcDAABnAAP5QREGxiLEAAgAAAAAQREGxiLEAAiXAAAA54DA/kERBsYixAAIlwAAAOeAwP2YQdxBY2P3ALqHg8iFALcDAICTg4NKBQczA/BABUiTlygAvpOdQjqOGpdjCwcDI6DFAWPqEgMDpwMAMwfHAwYHBcscQrPe5wKcQhMHHgDj7Nf9fR4jAhUBIyTFAYVFEaCBRQzBgoBGhZcAAADngID4lwAAAOeAAPd5cQbWItQm0krQTs5SzFbKWshexmLELoSqijcJ+P83BQCAIQUjIqkAlwAAAOeAAA9RRTMKpAJWmrcJAICTiQlJY4lKC1aMA6UKAAoFTpUIQdEKAoVihURBAEV90BOLFAABRZcAAADngCAMI4CkAH0U2oR51OW3AytMAIMrjACBRDMEmwDjjpv6AyUMAWP4pAADJcwAJpUDRQUAEaABRZcAAADngGAIIwCkAIUE0b9ihURBAEVR1APFBAATixQAlwAAAOeAYAYjgKQAfRTahC3Y3bdihUxBAEUl1APFBQCThBUAlwAAAOeAIAR9FKaFKdjttzcFAIAjIqkAslAiVJJUAlnySWJK0kpCS7JLIkxFYRcDAABnAIMANwX4/wxB488F/oKAQREGxiLENwT4/0jAlwAAAOeAgP5IQLJAIkRBAYKAAACgAwCAHgQAgMIDAID6AwCAjAMAgAUGAAACAAAABAAAAAgAAABAAAAAgAAAAAAEAAAACAAAABAAAAAAAAA=
+  load_address: 0x80000020
+  pc_init: 0x58
+  pc_uninit: 0x1fa
+  pc_program_page: 0x130
+  pc_erase_sector: 0x0
+  pc_read: 0x1a4
+  data_section_offset: 0x4ac
+  flash_properties:
+    address_range:
+      start: 0x20f00000
+      end: 0x20f20000
+    page_size: 0x100
+    erased_byte_value: 0xff
+    program_page_timeout: 1000
+    erase_sector_timeout: 2000
+    sectors:
+    - size: 0x1000
+      address: 0x0
+  cores:
+  - main

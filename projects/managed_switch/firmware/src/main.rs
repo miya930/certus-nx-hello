@@ -8,7 +8,6 @@ mod host;
 mod leds;
 mod links;
 mod memory_map;
-mod mt25q;
 mod ports;
 mod satcat5;
 mod settings;

@@ -18,6 +18,7 @@ defmt = "1"
 defmt-rtt = "1"
 embedded-hal = "1"
 neorv32-hal = { path = "../../../crates/neorv32-hal" }
+mt25q = { path = "../../../crates/mt25q" }
 
 [dependencies.smoltcp]
 version = "0.14"

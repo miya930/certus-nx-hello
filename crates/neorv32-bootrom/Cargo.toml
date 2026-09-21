@@ -1,0 +1,22 @@
+[package]
+name = "neorv32-bootrom"
+version = "0.1.0"
+edition = "2021"
+
+# no_std の対象には test クレートがないため、テストとベンチマークは組み立てられない。
+[[bin]]
+name = "neorv32-bootrom"
+test = false
+bench = false
+
+[dependencies]
+neorv32-hal = { path = "../neorv32-hal" }
+mt25q = { path = "../mt25q" }
+
+# 起動 ROM は FPGA の中に置くため、速さより大きさを優先する。
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = true

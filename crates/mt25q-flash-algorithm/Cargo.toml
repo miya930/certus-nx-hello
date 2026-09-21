@@ -1,0 +1,22 @@
+[package]
+name = "mt25q-flash-algorithm"
+version = "0.1.0"
+edition = "2021"
+
+# no_std の対象には test クレートがないため、テストとベンチマークは組み立てられない。
+[[bin]]
+name = "mt25q-flash-algorithm"
+test = false
+bench = false
+
+[dependencies]
+# 全体の消去は、Flash の先頭にあるビットストリームまで消すため、持たない。
+flash-algorithm = { version = "0.7", default-features = false, features = ["panic-handler", "read-flash"] }
+neorv32-hal = { path = "../neorv32-hal" }
+mt25q = { path = "../mt25q" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

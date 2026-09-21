@@ -1,0 +1,8 @@
+[build]
+target = "riscv32imc-unknown-none-elf"
+target-dir = "build"
+
+# flash-algorithm の memory.x が、PrgCode と DeviceData の配置を決める。
+# link.x は、その配置の先頭の番地だけを与える。
+[target.riscv32imc-unknown-none-elf]
+rustflags = ["-C", "link-arg=--nmagic", "-C", "link-arg=-Tlink.x", "-C", "link-arg=-Tmemory.x"]
