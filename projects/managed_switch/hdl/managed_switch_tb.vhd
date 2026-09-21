@@ -33,12 +33,14 @@ constant RMII_RX_DELAY  : time := 8 ns;
 constant RESET_USEC     : positive := 1;
 constant STARTUP_USEC   : positive := 2;
 
--- ブートローダが最初の 1 文字を送り始めるまで待つ上限。
--- 既定の 19200 baud では 1 文字に 521 マイクロ秒かかるため、それを大きく上回る値にする。
-constant BOOT_TIMEOUT   : time := 5 ms;
+-- PHY のリセットが解除されるまで待つ上限。リセットの待ち時間を大きく上回る値にする。
+constant RESET_TIMEOUT  : time := 100 us;
 
--- MDIO は 1.6 Mbaud で 32 回の書き込みを行うため、その時間を上回る値にする。
-constant MDIO_TIMEOUT   : time := 2 ms;
+-- NEORV32 は TCK をコアのクロックで取り込むため、TCK はコアのクロックの 1/5 以下にする。
+constant TCK_PERIOD     : time := 10 * SYS_CLK_PERIOD;
+
+-- 版と部品番号は 0 で、製造元の欄は Lattice の 0x021、最下位ビットは常に 1 である。
+constant IDCODE         : std_logic_vector(31 downto 0) := x"00000043";
 
 -- 100 Mbps で 72 バイトを送る 5.8 マイクロ秒を大きく上回る値にする。
 constant FRAME_TIMEOUT  : time := 100 us;
@@ -113,13 +115,26 @@ signal rgmii_rxclk  : std_logic := '0';
 signal rgmii_rxctrl : std_logic := '0';
 signal rgmii_rxd    : std_logic_vector(3 downto 0) := RGMII_INBAND;
 signal mdio_clk     : std_logic;
-signal mdio_data    : std_logic;
+-- 基板では MDIO のデータ線がプルアップされている。
+signal mdio_data    : std_logic := 'H';
 signal phy_rst_n    : std_logic;
 
 signal rmii_txd     : std_logic_vector(1 downto 0);
 signal rmii_txen    : std_logic;
 signal rmii_rxd     : std_logic_vector(1 downto 0) := "00";
 signal rmii_crs_dv  : std_logic := '0';
+
+signal jtag_tck     : std_logic := '0';
+signal jtag_tms     : std_logic := '1';
+signal jtag_tdi     : std_logic := '1';
+signal jtag_tdo     : std_logic;
+
+signal spi_mclk     : std_logic;
+signal dq0_mosi     : std_logic;
+signal dq1_miso     : std_logic := 'H';
+signal csspin       : std_logic;
+signal dq2          : std_logic;
+signal dq3          : std_logic;
 
 signal led          : std_logic_vector(7 downto 0);
 
@@ -155,6 +170,16 @@ uut : entity work.managed_switch
     pushbutton3     => pushbutton3,
     txd_uart        => txd_uart,
     rxd_uart        => rxd_uart,
+    jtag_tck        => jtag_tck,
+    jtag_tms        => jtag_tms,
+    jtag_tdi        => jtag_tdi,
+    jtag_tdo        => jtag_tdo,
+    spi_mclk        => spi_mclk,
+    dq0_mosi        => dq0_mosi,
+    dq1_miso        => dq1_miso,
+    csspin          => csspin,
+    dq2             => dq2,
+    dq3             => dq3,
     led             => led);
 
 p_phy_clk : process
@@ -294,6 +319,20 @@ p_test : process
         rmii_rxd    <= "00";
         rmii_crs_dv <= '0';
     end procedure;
+
+    -- TCK を 1 周期動かし、立ち上がりで TDO を取り込む。
+    procedure jtag_clock(tms : std_logic; tdo : out std_logic) is
+    begin
+        jtag_tms <= tms;
+        wait for TCK_PERIOD / 2;
+        jtag_tck <= '1';
+        tdo := jtag_tdo;
+        wait for TCK_PERIOD / 2;
+        jtag_tck <= '0';
+    end procedure;
+
+    variable tdo    : std_logic;
+    variable dr     : std_logic_vector(31 downto 0);
 begin
     -- 押しボタンを押した状態から始める。
     pushbutton3 <= '0';
@@ -309,24 +348,41 @@ begin
         report "reset: RGMII is transmitting" severity error;
     assert rmii_txen = '0'
         report "reset: RMII is transmitting" severity error;
+    assert csspin = '1'
+        report "reset: SPI Flash is selected" severity error;
+    assert dq2 = '1' and dq3 = '1'
+        report "reset: SPI Flash write protect or hold is asserted" severity error;
 
     pushbutton3 <= '1';
 
     -- リセットの待ち時間が過ぎると、PHY のリセットが解除される。
-    wait until phy_rst_n = '1' for BOOT_TIMEOUT;
+    wait until phy_rst_n = '1' for RESET_TIMEOUT;
     assert phy_rst_n = '1'
         report "PHY reset was not released" severity error;
 
-    -- 起動の待ち時間の後、MDIO が設定を書き終える。LED0 の点灯がその合図になる。
-    wait until led(0) = '0' for MDIO_TIMEOUT;
-    assert led(0) = '0'
-        report "MDIO did not finish writing the PHY registers" severity error;
+    -- TAP をリセットすると、命令レジスタは IDCODE を選ぶ。
+    -- Test-Logic-Reset から Run-Test/Idle、Select-DR-Scan、Capture-DR を経て Shift-DR に入る。
+    for n in 1 to 5 loop
+        jtag_clock('1', tdo);
+    end loop;
+    jtag_clock('0', tdo);
+    jtag_clock('1', tdo);
+    jtag_clock('0', tdo);
+    jtag_clock('0', tdo);
 
-    -- ブートローダが起動すると、UART が最初のスタートビットで 0 になる。
-    -- CPU がスイッチコアと ConfigBus を抱えた構成でも動き出すことの確認になる。
-    wait until rxd_uart = '0' for BOOT_TIMEOUT;
-    assert rxd_uart = '0'
-        report "bootloader did not send anything within the timeout" severity error;
+    -- 最下位ビットから読み、最後のビットで Exit1-DR に抜ける。
+    for n in dr'reverse_range loop
+        if n = dr'high then
+            jtag_clock('1', dr(n));
+        else
+            jtag_clock('0', dr(n));
+        end if;
+    end loop;
+    jtag_clock('1', tdo);
+    jtag_clock('0', tdo);
+
+    assert dr = IDCODE
+        report "JTAG: IDCODE does not match" severity error;
 
     -- RMII で受けたフレームを、スイッチが RGMII へ送る。
     send_rmii(FRAME_FROM_RMII);

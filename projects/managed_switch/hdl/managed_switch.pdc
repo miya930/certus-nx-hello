@@ -33,6 +33,20 @@ ldc_set_location -site {J16} [get_ports pushbutton3]
 ldc_set_location -site {F10} [get_ports txd_uart]
 ldc_set_location -site {E13} [get_ports rxd_uart]
 
+# JTAG は PMOD の J5 の 1 番から 4 番に出す。
+ldc_set_location -site {J11} [get_ports jtag_tck]
+ldc_set_location -site {J12} [get_ports jtag_tms]
+ldc_set_location -site {K11} [get_ports jtag_tdi]
+ldc_set_location -site {K12} [get_ports jtag_tdo]
+
+# SPI Flash のチップセレクトは、FPGA の CSSPIN につながっている。
+ldc_set_location -site {C16} [get_ports spi_mclk]
+ldc_set_location -site {C14} [get_ports dq0_mosi]
+ldc_set_location -site {D16} [get_ports dq1_miso]
+ldc_set_location -site {C15} [get_ports csspin]
+ldc_set_location -site {D15} [get_ports dq2]
+ldc_set_location -site {D12} [get_ports dq3]
+
 ldc_set_location -site {B3} [get_ports {led[0]}]
 ldc_set_location -site {A2} [get_ports {led[1]}]
 ldc_set_location -site {H16} [get_ports {led[2]}]
@@ -56,7 +70,8 @@ ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {rgmii_rxd[1]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {rgmii_rxd[2]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {rgmii_rxd[3]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rgmii_mdio_clk]
-ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rgmii_mdio_data]
+# MDIO のデータ線は PHY も駆動するため、どちらも駆動しないときの値をプルアップで 1 にする。
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports rgmii_mdio_data]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rgmii_rst_n]
 
 # Bank 2 の電源は 3.3 V に固定されている。
@@ -76,6 +91,21 @@ ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports pushbutton3]
 
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports txd_uart]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rxd_uart]
+
+# プローブを外しているときに TAP が動かないよう、TCK は 0、TMS と TDI は 1 に引いておく。
+# TMS が 1 のままなら、TAP はリセットの状態に留まる。
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=DOWN} [get_ports jtag_tck]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports jtag_tms]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports jtag_tdi]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports jtag_tdo]
+
+# SPI Flash は Bank 0 にあり、Bank 0 の電源は J47 の既定で 1.8 V になる。
+ldc_set_port -iobuf {IO_TYPE=LVCMOS18} [get_ports spi_mclk]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS18} [get_ports dq0_mosi]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS18} [get_ports dq1_miso]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS18} [get_ports csspin]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS18} [get_ports dq2]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS18} [get_ports dq3]
 
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[0]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[1]}]

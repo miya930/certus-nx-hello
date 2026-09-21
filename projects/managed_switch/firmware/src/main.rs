@@ -1,92 +1,123 @@
 #![no_std]
 #![no_main]
 
+mod cfgbus;
+mod clint;
+mod commands;
+mod console;
+mod flash;
 mod mailmap;
+mod mdio;
+mod settings;
+mod sgr;
+mod switch;
+mod uart;
 
 use core::ptr::{read_volatile, write_volatile};
 use panic_halt as _;
 use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
-use smoltcp::time::{Duration, Instant};
+use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
-// NEORV32 のメモリマップ。
+use commands::State;
+use console::Console;
+use settings::Settings;
+
+const GPIO_PORT_IN: *const u32 = 0xFFFC_0000 as *const u32;
 const GPIO_PORT_OUT: *mut u32 = 0xFFFC_0004 as *mut u32;
-const UART0_CTRL: *mut u32 = 0xFFF5_0000 as *mut u32;
-const UART0_DATA: *mut u32 = 0xFFF5_0004 as *mut u32;
-const CLINT_MTIME_LO: *mut u32 = 0xFFF4_BFF8 as *mut u32;
-const CLINT_MTIME_HI: *mut u32 = 0xFFF4_BFFC as *mut u32;
 
-// CTRL のビット 19 は、送信 FIFO に空きがあることを示す。
-const UART_CTRL_TX_NFULL: u32 = 1 << 19;
+/// GPIO の入力の最下位は、PHY のリセットの解除から MDIO を使えるまでの待ちが終わったことを示す。
+const GPIO_IN_PHY_READY: u32 = 1 << 0;
 
-const CLK_HZ: u32 = 25_000_000;
+// LED は、最下位に DP83867 のリンクを、最上位に動作を示す点滅を出し、残りに受け取ったフレームの数を出す。
+const LED_LINK: u32 = 1 << 0;
+const LED_HEARTBEAT: u32 = 1 << 7;
+const LED_RX_SHIFT: u32 = 1;
+const LED_RX_MASK: u32 = 0x3F;
 
-// MAC はローカル管理のアドレスを使う。
-// IP は固定で、プライベートアドレスの範囲から選ぶ。
-const MAC: [u8; 6] = [0x5A, 0x5A, 0x00, 0x00, 0x00, 0x02];
-const IP: Ipv4Address = Ipv4Address::new(192, 168, 1, 10);
-const PREFIX: u8 = 24;
+const CONSOLE_BAUD: u32 = 115_200;
+/// リンクは MDIO で読むため、読む間隔をあけて通信の処理を妨げないようにする。
+const LINK_POLL_MSEC: u64 = 500;
 
-/// ブートローダが設定した速度をそのまま使うため、CTRL は書き換えない。
-fn uart_put(byte: u8) {
-    while unsafe { read_volatile(UART0_CTRL) } & UART_CTRL_TX_NFULL == 0 {}
-    unsafe { write_volatile(UART0_DATA, byte as u32) };
-}
-
-fn uart_puts(text: &str) {
-    for byte in text.bytes() {
-        if byte == b'\n' {
-            uart_put(b'\r');
-        }
-        uart_put(byte);
-    }
-}
-
-/// マシンタイマは 64 ビットで、下位を読む間に上位が繰り上がることがある。
-/// 上位が変わらなかったときの組み合わせだけを使う。
-fn mtime() -> u64 {
-    loop {
-        let high = unsafe { read_volatile(CLINT_MTIME_HI) };
-        let low = unsafe { read_volatile(CLINT_MTIME_LO) };
-        if high == unsafe { read_volatile(CLINT_MTIME_HI) } {
-            return ((high as u64) << 32) | low as u64;
-        }
-    }
-}
-
-/// タイマはシステムクロックで進むため、経過時間をクロック周波数から求める。
 fn now() -> Instant {
-    Instant::from_millis((mtime() / (CLK_HZ as u64 / 1000)) as i64)
+    Instant::from_millis(clint::millis() as i64)
+}
+
+/// 設定を smoltcp とスイッチコアに反映する。
+fn apply(settings: &Settings, iface: &mut Interface) {
+    iface.set_hardware_addr(EthernetAddress(settings.mac).into());
+    iface.update_ip_addrs(|addrs| {
+        addrs.clear();
+        let cidr = Ipv4Cidr::new(Ipv4Address::from(settings.ip), settings.prefix);
+        addrs.push(IpCidr::Ipv4(cidr)).expect("address list is full");
+    });
+    iface.routes_mut().remove_default_ipv4_route();
+    if let Some(gateway) = settings.gateway {
+        iface
+            .routes_mut()
+            .add_default_ipv4_route(Ipv4Address::from(gateway))
+            .expect("route table is full");
+    }
+    switch::set_mirror(settings.mirror);
 }
 
 #[riscv_rt::entry]
 fn main() -> ! {
-    uart_puts("\nManaged switch on NEORV32.\n");
-    uart_puts("Address 192.168.1.10/24, MAC 5A:5A:00:00:00:02.\n");
+    uart::init(clint::CLK_HZ, CONSOLE_BAUD);
+    uart::puts("\n");
+    sgr::puts_styled(sgr::BOLD, "Managed switch on NEORV32.");
+    uart::puts(" Type \"help\" for the commands.\n");
+
+    flash::init();
+    let saved = Settings::load();
+    if saved.is_none() {
+        sgr::puts_styled(sgr::YELLOW, "No saved settings. Using the defaults.\n");
+    }
+    let mut state = State {
+        settings: saved.unwrap_or(settings::DEFAULT),
+        saved,
+    };
+
+    while unsafe { read_volatile(GPIO_PORT_IN) } & GPIO_IN_PHY_READY == 0 {}
+    mdio::init_phy();
 
     let mut device = mailmap::MailMap::new();
-    let config = Config::new(EthernetAddress(MAC).into());
+    let config = Config::new(EthernetAddress(state.settings.mac).into());
     let mut iface = Interface::new(config, &mut device, now());
-    iface.update_ip_addrs(|addrs| {
-        addrs
-            .push(IpCidr::Ipv4(Ipv4Cidr::new(IP, PREFIX)))
-            .expect("address list is full");
-    });
+    apply(&state.settings, &mut iface);
 
     // ソケットは開かない。ARP と ICMP の応答は smoltcp が IP の層で処理する。
     let mut storage: [SocketStorage; 1] = Default::default();
     let mut sockets = SocketSet::new(&mut storage[..]);
 
-    // LED の下位 7 ビットに受け取ったフレーム数を出し、最上位を毎秒反転させて動作を示す。
-    let mut heartbeat: u32 = 0;
-    let mut next_beat = now() + Duration::from_secs(1);
+    let mut console = Console::new();
+    console.prompt();
+
+    let mut leds = 0;
+    let mut next_poll = 0;
 
     loop {
         iface.poll(now(), &mut device, &mut sockets);
-        if now() >= next_beat {
-            heartbeat ^= 1;
-            next_beat = now() + Duration::from_secs(1);
+
+        while let Some(byte) = uart::get() {
+            if let Some(line) = console.feed(byte, commands::complete) {
+                if commands::execute(line, &mut state) {
+                    apply(&state.settings, &mut iface);
+                }
+                console.prompt();
+            }
         }
-        unsafe { write_volatile(GPIO_PORT_OUT, (heartbeat << 7) | (device.rx_count & 0x7F)) };
+
+        let millis = clint::millis();
+        if millis >= next_poll {
+            next_poll = millis + LINK_POLL_MSEC;
+            leds ^= LED_HEARTBEAT;
+            leds &= !LED_LINK;
+            if mdio::phy_status().link {
+                leds |= LED_LINK;
+            }
+        }
+        let rx = (device.rx_count & LED_RX_MASK) << LED_RX_SHIFT;
+        unsafe { write_volatile(GPIO_PORT_OUT, leds | rx) };
     }
 }

@@ -1,5 +1,6 @@
 DEVICE  := LFD2NX-40-8BG256C
 NEORV32 := ../../third_party/neorv32
+PROBE_RS := ../../third_party/neorv32_probe_rs
 BUILD   := build
 
 # NEORV32 は VHDL-2008 で書かれ、自身を neorv32 ライブラリに置くことを前提にしている。
@@ -7,8 +8,8 @@ BUILD   := build
 GHDL_FLAGS := --std=08 --work=neorv32
 
 # NEORV32 が file_list_core.f に解析順を持っているため、GHDL に解析順を求めない。
-# 起動 ROM の中身は、ブートローダの代わりにこのプロジェクトのものを同じ位置で解析する。
-CORE_VHDL := $(patsubst %/neorv32_bootrom_image.vhd,neorv32_bootrom_image.vhd, \
+# 起動 ROM の中身は、ブートローダの代わりに neorv32_probe_rs のものを同じ位置で解析する。
+CORE_VHDL := $(patsubst %/neorv32_bootrom_image.vhd,$(PROBE_RS)/neorv32_bootrom_image.vhd, \
 	$(shell sed 's|$$NEORV32_HOME|$(NEORV32)|g' $(NEORV32)/rtl/file_list_core.f))
 VHDL := $(CORE_VHDL) riscv_rust.vhd
 

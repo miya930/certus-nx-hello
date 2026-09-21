@@ -1,0 +1,13 @@
+--- a/src/vhdl/common/eth_statistics.vhd
++++ b/src/vhdl/common/eth_statistics.vhd
+@@ -174,8 +174,8 @@
+ signal lat_err_pkt      : byte_u := (others => '0');
+ signal lat_err_ptp_tx   : byte_u := (others => '0');
+ signal lat_err_ptp_rx   : byte_u := (others => '0');
+-signal lat_rx_freq      : tfreq_t := TFREQ_DISABLED;
+-signal lat_tx_freq      : tfreq_t := TFREQ_DISABLED;
++signal lat_rx_freq      : tfreq_t := (others => '0');
++signal lat_tx_freq      : tfreq_t := (others => '0');
+ 
+ -- Clock crossing.
+ signal stats_req_rx     : std_logic;

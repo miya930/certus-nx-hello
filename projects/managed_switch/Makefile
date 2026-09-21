@@ -2,13 +2,9 @@ DEVICE  := LFD2NX-40-8BG256C
 SATCAT5 := ../../third_party/satcat5/src/vhdl
 NEORV32 := ../../third_party/neorv32
 NEXUS   := ../../third_party/satcat5_nexus
+PROBE_RS := ../../third_party/neorv32_probe_rs
 PATCHES := $(NEXUS)/patches
 BUILD   := build
-PORT    ?= /dev/ttyUSB1
-
-LLVM_OBJCOPY := $(shell find $$(rustc --print sysroot) -name llvm-objcopy | head -1)
-FIRMWARE_ELF := $(BUILD)/firmware/riscv32imc-unknown-none-elf/release/managed_switch_firmware
-EXE          := $(BUILD)/neorv32_exe.bin
 
 # GHDL で合成できない SatCat5 のファイルは、パッチを当てたコピーを元のファイルの代わりに使う。
 PATCHED := $(patsubst $(PATCHES)/%.patch,build/patched/%,$(wildcard $(PATCHES)/*.patch))
@@ -26,7 +22,9 @@ GHDL_FLAGS := --std=08 --work=neorv32 --workdir=$(BUILD) --warn-no-binding
 SYNTH_FLAGS := --std=08 --work=neorv32 --warn-no-binding -Wno-nowrite --no-notes
 
 # NEORV32 は解析順を file_list_core.f に持っている。
-CORE_VHDL := $(shell sed 's|$$NEORV32_HOME|$(NEORV32)|g' $(NEORV32)/rtl/file_list_core.f)
+# 起動 ROM の中身は、ブートローダの代わりに neorv32_probe_rs のものを同じ位置で解析する。
+CORE_VHDL := $(patsubst %/neorv32_bootrom_image.vhd,$(PROBE_RS)/neorv32_bootrom_image.vhd, \
+	$(shell sed 's|$$NEORV32_HOME|$(NEORV32)|g' $(NEORV32)/rtl/file_list_core.f))
 
 # SatCat5 の Lattice 向けの同期回路は、SB_DFFR 以外に iCE40 固有の記述がないため、そのまま使う。
 VHDL := $(CORE_VHDL) \
@@ -75,26 +73,6 @@ sim: $(SIM_VHDL)
 	ghdl -c --std=08 --work=neorv32 --workdir=build/sim -o build/sim/managed_switch_tb $(SIM_VHDL) -e managed_switch_tb
 	build/sim/managed_switch_tb --assert-level=error --ieee-asserts=disable
 
-# cargo が更新の要否を判断するため、この入口は常に実行する。
-.PHONY: firmware
-firmware:
-	cd firmware && cargo build --release
-
-# ブートローダは ELF を読めないため、平坦なバイナリにしてからヘッダを付ける。
-$(BUILD)/firmware.bin: firmware
-	$(LLVM_OBJCOPY) -O binary $(FIRMWARE_ELF) $@
-
-$(BUILD)/image_gen: $(NEORV32)/sw/image_gen/image_gen.c
-	mkdir -p $(BUILD)
-	$(CC) -o $@ $<
-
-$(EXE): $(BUILD)/firmware.bin $(BUILD)/image_gen
-	$(BUILD)/image_gen -i $< -o $@ -b 0x00000000 -t exe
-
-# ファームウェアを UART から流し込んで実行する。FPGA のコンフィグとは経路が分かれる。
-upload: $(EXE)
-	uv run ../../tools/neorv32_upload/neorv32_upload.py --watch 5 $(PORT) $(EXE)
-
 # SRAM に書き込む。電源を切ると消える。
 load: $(BUILD)/managed_switch.bit
 	openFPGALoader -b certusnx_versa_evn $<
@@ -106,4 +84,4 @@ flash: $(BUILD)/managed_switch.bit
 clean:
 	rm -rf build
 
-.PHONY: all sim load flash upload clean
+.PHONY: all sim load flash clean

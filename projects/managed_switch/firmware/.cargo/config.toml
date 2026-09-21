@@ -5,3 +5,17 @@ target-dir = "../build/firmware"
 
 [target.riscv32imc-unknown-none-elf]
 rustflags = ["-C", "link-arg=-Tmemory.x", "-C", "link-arg=-Tlink.x"]
+# cargo run で、JTAG から命令メモリに書き込み、コアをリセットして実行させる。
+# 起動 ROM が書き込まれたファームウェアへ飛ぶため、リセットすると実行を始める。
+runner = "probe-rs run"
+
+# probe-rs の設定は、コマンドの引数の代わりに環境変数で渡す。
+[env]
+PROBE_RS_CHIP = "managed_switch"
+PROBE_RS_CHIP_DESCRIPTION_PATH = { value = "../neorv32.yaml", relative = true }
+# probe-rs はボードの FTDI もプローブとして見つけるため、rust-dap を VID:PID で選ぶ。
+PROBE_RS_PROBE = "6666:4444"
+PROBE_RS_PROTOCOL = "jtag"
+# NEORV32 は TCK をコアのクロックで取り込むため、TCK の上限は 25 MHz の 1/5 の 5 MHz になる。
+# 上限に対して余裕を持たせ、1 MHz にする。
+PROBE_RS_SPEED = "1000"

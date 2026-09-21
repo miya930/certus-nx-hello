@@ -14,6 +14,15 @@ default-features = false
 # ICMP の echo への自動応答は auto-icmp-echo-reply で囲まれており、無いと要求が捨てられる。
 features = ["medium-ethernet", "proto-ipv4", "socket-icmp", "auto-icmp-echo-reply"]
 
+# cargo run は開発用のビルドを使う。
+# 命令メモリは 32 KB で、検査を入れた開発用のビルドは入りきらないため、リリースと同じ中身にする。
+[profile.dev]
+opt-level = "z"
+lto = true
+codegen-units = 1
+debug-assertions = false
+overflow-checks = false
+
 # 命令メモリが限られるため、速度より大きさを優先する。
 [profile.release]
 opt-level = "z"
