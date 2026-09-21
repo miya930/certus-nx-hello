@@ -10,8 +10,8 @@ mod satcat5;
 mod settings;
 mod traffic;
 
+use defmt_rtt as _;
 use neorv32_hal::{gpio::Gpio, mtime::Mtime, pac, spi::Spi, uart::Uart};
-use panic_halt as _;
 use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
@@ -48,6 +48,14 @@ const LED_RX_MASK: u32 = 0x3F;
 /// リンクは MDIO で読むため、読む間隔をあけて通信の処理を妨げないようにする。
 const LINK_POLL_MSEC: u64 = 500;
 
+/// パニックしたことを defmt で送ってから止まる。
+/// 場所を読むと、パニックのメッセージの整形に使う core::fmt が残り、命令メモリが約 20 KB 増えるため、読まない。
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    defmt::error!("panicked");
+    loop {}
+}
+
 fn now(mtime: &Mtime) -> Instant {
     Instant::from_millis(mtime.millis() as i64)
 }
@@ -55,6 +63,8 @@ fn now(mtime: &Mtime) -> Instant {
 /// 設定を smoltcp とスイッチコアに反映する。
 /// ミラーリングは、指定した 1 つのポートだけをプロミスキャスにして実現する。
 fn apply(settings: &Settings, iface: &mut Interface) {
+    let [a, b, c, d] = settings.ip;
+    defmt::info!("IP address {=u8}.{=u8}.{=u8}.{=u8}/{=u8}", a, b, c, d, settings.prefix);
     iface.set_hardware_addr(EthernetAddress(settings.mac).into());
     iface.update_ip_addrs(|addrs| {
         addrs.clear();
@@ -114,6 +124,7 @@ fn main() -> ! {
 
     let mut leds = 0;
     let mut next_poll = 0;
+    let mut link = false;
 
     loop {
         iface.poll(now(&mtime), &mut device, &mut sockets);
@@ -131,7 +142,20 @@ fn main() -> ! {
             next_poll = millis + LINK_POLL_MSEC;
             leds ^= LED_HEARTBEAT;
             leds &= !LED_LINK;
-            if phy.status().link {
+            let status = phy.status();
+            if status.link != link {
+                link = status.link;
+                if link {
+                    defmt::info!(
+                        "DP83867 link up, {=u32} Mbps, full duplex {=bool}",
+                        status.speed_mbps,
+                        status.full_duplex
+                    );
+                } else {
+                    defmt::info!("DP83867 link down");
+                }
+            }
+            if link {
                 leds |= LED_LINK;
             }
         }
