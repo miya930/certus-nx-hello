@@ -1,0 +1,30 @@
+--- a/src/vhdl/common/io_mdio_readwrite.vhd
++++ b/src/vhdl/common/io_mdio_readwrite.vhd
+@@ -43,7 +43,9 @@
+ 
+     -- MDIO interface
+     mdio_clk    :   out std_logic;
+-    mdio_data   : inout std_logic;
++    mdio_data_i : in    std_logic;
++    mdio_data_o :   out std_logic;
++    mdio_data_t :   out std_logic;  -- 1 = Hi-Z
+ 
+     -- System interface
+     ref_clk     : in    std_logic;  -- Reference clock
+@@ -76,13 +78,9 @@
+ rd_rdy      <= rd_final;
+ mdio_clk    <= phy_clk_o;
+ 
+-u_iobuf : bidir_io
+-    generic map(EN_PULLUP => true)
+-    port map(
+-    io_pin  => mdio_data,
+-    d_in    => phy_data_i,
+-    d_out   => phy_data_o,
+-    t_en    => phy_data_t);
++phy_data_i  <= mdio_data_i;
++mdio_data_o <= phy_data_o;
++mdio_data_t <= phy_data_t;
+ 
+ -- Synchronize the MDIO input signal.
+ u_sync : sync_buffer

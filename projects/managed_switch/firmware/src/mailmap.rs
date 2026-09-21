@@ -1,11 +1,8 @@
 //! SatCat5 の port_mailmap を smoltcp の Device として扱う。
 
-use core::ptr::{read_volatile, write_volatile};
+use crate::cfgbus::{self, DEV_MAILMAP};
 use smoltcp::phy::{self, Checksum, ChecksumCapabilities, DeviceCapabilities, Medium};
 use smoltcp::time::Instant;
-
-/// ConfigBus のデバイス 1 が並ぶ位置。デバイス番号を 12 ビット左に寄せた先になる。
-const BASE: usize = 0x9000_1000;
 
 /// 受信したフレームの中身が並ぶ先頭のレジスタ。
 const REG_RX_DATA: usize = 0;
@@ -23,11 +20,11 @@ const BUFFER_BYTES: usize = 1600;
 /// ConfigBus を Wishbone 経由でつないでいるため、バイト単位の書き込みができない。
 /// フレームはワード単位で読み書きし、バイトへの詰め替えは CPU 側で行う。
 fn read_reg(index: usize) -> u32 {
-    unsafe { read_volatile((BASE + index * 4) as *const u32) }
+    cfgbus::read(DEV_MAILMAP, index)
 }
 
 fn write_reg(index: usize, value: u32) {
-    unsafe { write_volatile((BASE + index * 4) as *mut u32, value) };
+    cfgbus::write(DEV_MAILMAP, index, value);
 }
 
 pub struct MailMap {

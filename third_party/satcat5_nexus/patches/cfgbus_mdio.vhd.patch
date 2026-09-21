@@ -1,0 +1,24 @@
+--- a/src/vhdl/common/cfgbus_mdio.vhd
++++ b/src/vhdl/common/cfgbus_mdio.vhd
+@@ -46,7 +46,9 @@
+     port (
+     -- MDIO port
+     mdio_clk    :   out std_logic;
+-    mdio_data   : inout std_logic;
++    mdio_data_i : in    std_logic;
++    mdio_data_o :   out std_logic;
++    mdio_data_t :   out std_logic;  -- 1 = Hi-Z
+     -- ConfigBus device interface.
+     cfg_cmd     : in    cfgbus_cmd;
+     cfg_ack     :   out cfgbus_ack);
+@@ -89,7 +91,9 @@
+     rd_data     => rd_data,
+     rd_rdy      => rd_rdy,
+     mdio_clk    => mdio_clk,
+-    mdio_data   => mdio_data,
++    mdio_data_i => mdio_data_i,
++    mdio_data_o => mdio_data_o,
++    mdio_data_t => mdio_data_t,
+     ref_clk     => cfg_cmd.clk,
+     reset_p     => cfg_cmd.reset_p);
+ 
