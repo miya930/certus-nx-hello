@@ -221,12 +221,21 @@ NEORV32 は、応答をストローブの次のサイクルから受け付ける
 ### ファームウェアの Flash への書き込みと起動
 
 `cargo run` は、`tools/firmware_flash` を通して、ファームウェアを SPI Flash と命令メモリの両方に書く。
+その流れを次の図に示す。
+破線は、Flash に書かない `cargo run-ram` の流れである。
+
+![ファームウェアを書き込む流れ](doc/managed_switch_firmware_write.svg)
+
 Flash には、probe-rs が `flash_algorithms/mt25q` の書き込みプログラムをデータメモリで動かして書く。
 probe-rs は書き込みの進み具合を表示する。
 命令メモリにも書くのは、書いた直後から Flash を読まずに動かし、defmt のログを見るためである。
+それぞれを書くアドレスは、「書き込む先」の表にある。
 
 電源を入れた直後と、FPGA をコンフィグし直した直後は、命令メモリが空である。
 そのとき起動 ROM が Flash の firmware image を命令メモリにコピーし、ファームウェアを動かす。
+起動 ROM が何を確かめてから命令メモリへ飛ぶかを、次の図に示す。
+
+![起動の流れ](doc/managed_switch_boot.svg)
 
 Flash の SPI は、この基板の線で安定する約 98 kHz で動かす。
 そのため、約 36 KB のファームウェアを Flash に書くのに約 21 秒、起動時にコピーするのに約 3 秒かかる。
