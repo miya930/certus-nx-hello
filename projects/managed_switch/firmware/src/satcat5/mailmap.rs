@@ -3,6 +3,7 @@
 use super::Device;
 use smoltcp::phy::{self, Checksum, ChecksumCapabilities, DeviceCapabilities, Medium};
 use smoltcp::time::Instant;
+use smoltcp::wire::{EthernetFrame, EthernetRepr};
 
 /// 受信したフレームの中身が並ぶ先頭のレジスタ。
 const REG_RX_DATA: usize = 0;
@@ -99,6 +100,7 @@ impl phy::Device for MailMap {
             return None;
         }
         self.port.take_frame(&mut self.rx_buffer[..length]);
+        log_frame("rx", &self.rx_buffer[..length]);
         self.rx_count = self.rx_count.wrapping_add(1);
         let port = self.port;
         let (rx_buffer, tx_buffer) = (&self.rx_buffer[..length], &mut self.tx_buffer);
@@ -113,6 +115,13 @@ impl phy::Device for MailMap {
             port: self.port,
             buffer: &mut self.tx_buffer,
         })
+    }
+}
+
+/// フレームの長さと Ethernet のヘッダを debug のログに出す。
+fn log_frame(direction: &str, frame: &[u8]) {
+    if let Ok(header) = EthernetFrame::new_checked(frame).and_then(|frame| EthernetRepr::parse(&frame)) {
+        defmt::debug!("{=str} {=usize} bytes, {}", direction, frame.len(), header);
     }
 }
 
@@ -134,6 +143,7 @@ pub struct TxToken<'a> {
 impl<'a> phy::TxToken for TxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
         let result = f(&mut self.buffer[..length]);
+        log_frame("tx", &self.buffer[..length]);
         self.port.send_frame(&self.buffer[..length]);
         result
     }

@@ -2,7 +2,7 @@
 //! 統計のブロックは取り込みのたびに数え直すため、累計はファームウェアが足し込む。
 
 use crate::memory_map::PORT_STATS;
-use crate::ports::PORT_COUNT;
+use crate::ports::{PORT_COUNT, PORT_NAMES};
 use neorv32_hal::mtime::Mtime;
 
 /// 取り込みの間隔。1 秒あたりの数は 32 ビットの数に収まる。
@@ -49,6 +49,14 @@ impl Traffic {
         PORT_STATS.refresh(&mut self.mtime);
         for (port, totals) in self.totals.iter_mut().enumerate() {
             let counts = PORT_STATS.counts(port);
+            if counts.errors != 0 || counts.discards != 0 {
+                defmt::warn!(
+                    "{=str} port: {=u32} errors, {=u32} discards",
+                    PORT_NAMES[port],
+                    counts.errors,
+                    counts.discards
+                );
+            }
             totals.rx_frames += counts.rx_frames as u64;
             totals.rx_broadcast += counts.rx_broadcast_frames as u64;
             totals.rx_bytes += counts.rx_bytes as u64;

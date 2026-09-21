@@ -18,9 +18,11 @@ use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
 use console::{commands::State, Console, Style};
 use dp83867::Dp83867;
-use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
+use memory_map::{MAILMAP, MDIO, PORT_STATS, SWITCH_CORE};
 use mt25q::Mt25q;
+use ports::PORT_RMII;
 use satcat5::mailmap::MailMap;
+use satcat5::port_stats::RMII_STATUS_LOCK;
 use settings::Settings;
 use traffic::Traffic;
 
@@ -96,7 +98,10 @@ fn main() -> ! {
     let phy = Dp83867::new(MDIO, DP83867_PHY_ADDR);
 
     let saved = Settings::load(&mut flash);
-    if saved.is_none() {
+    if saved.is_some() {
+        defmt::info!("Loaded the settings from the SPI Flash");
+    } else {
+        defmt::warn!("No saved settings in the SPI Flash, using the defaults");
         console.output().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
     }
     let mut state = State {
@@ -125,6 +130,7 @@ fn main() -> ! {
     let mut leds = 0;
     let mut next_poll = 0;
     let mut link = false;
+    let mut rmii_locked = false;
 
     loop {
         iface.poll(now(&mtime), &mut device, &mut sockets);
@@ -157,6 +163,15 @@ fn main() -> ! {
             }
             if link {
                 leds |= LED_LINK;
+            }
+            let locked = PORT_STATS.link(PORT_RMII).1 & RMII_STATUS_LOCK != 0;
+            if locked != rmii_locked {
+                rmii_locked = locked;
+                if locked {
+                    defmt::info!("RMII REF_CLK locked");
+                } else {
+                    defmt::warn!("RMII REF_CLK lost");
+                }
             }
         }
         let rx = (device.rx_count & LED_RX_MASK) << LED_RX_SHIFT;

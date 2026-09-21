@@ -24,7 +24,8 @@ version = "0.14"
 default-features = false
 # ソケットを 1 つも有効にしないと smoltcp の Socket 列挙が空になり、組み上がらない。
 # ICMP の echo への自動応答は auto-icmp-echo-reply で囲まれており、無いと要求が捨てられる。
-features = ["medium-ethernet", "proto-ipv4", "socket-icmp", "auto-icmp-echo-reply"]
+# defmt は、smoltcp が捨てたパケットなどのログと、ヘッダの型の表示を defmt に出す。
+features = ["medium-ethernet", "proto-ipv4", "socket-icmp", "auto-icmp-echo-reply", "defmt"]
 
 # cargo run は開発用のビルドを使う。
 # 命令メモリは 64 KB で、検査を入れた開発用のビルドは入りきらないため、リリースと同じ中身にする。

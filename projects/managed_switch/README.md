@@ -292,8 +292,17 @@ DP83867 は MDIO の型を通して、MT25QU128 は embedded-hal の `SpiDevice`
 
 ファームウェアは、defmt でログを RTT のバッファに書く。
 `cargo run` で動く probe-rs が、JTAG からバッファを読んでログを表示する。
-今は、設定を反映したときの IP アドレスと、DP83867 のリンクの変化をログに出す。
-ログをどの深さまで出すかは、`firmware/.cargo/config.toml` の `DEFMT_LOG` で決める。
+ログには、次のものを出す。
+
+| レベル | 内容 |
+|---|---|
+| info | 設定の読み込みと保存、設定を反映したときの IP アドレス、DP83867 のリンクの変化、RMII の REF_CLK のロック |
+| warn | Flash に設定がないこと、RMII の REF_CLK が外れたこと、1 秒の間にエラーか取りこぼしがあったポート |
+| debug | CPU が送受信したフレームの長さと Ethernet のヘッダ、smoltcp が捨てたパケット |
+
+ログをどの深さまで出すかは、`firmware/.cargo/config.toml` の `DEFMT_LOG` で決め、既定は info である。
+defmt は、この深さより細かいログをビルドの時点で取り除く。
+debug のログを見るときは、`DEFMT_LOG=debug cargo run` のように指定してビルドし直す。
 
 probe-rs は、バッファを読むたびにコアを止める。
 その理由は、`projects/riscv_rust/README.md` にある。
