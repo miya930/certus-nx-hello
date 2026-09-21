@@ -10,13 +10,30 @@ const UART0_CTRL: *mut u32 = 0xFFF5_0000 as *mut u32;
 const UART0_DATA: *mut u32 = 0xFFF5_0004 as *mut u32;
 const CLINT_MTIME: *mut u32 = 0xFFF4_BFF8 as *mut u32;
 
-// CTRL のビット 19 は、送信 FIFO に空きがあることを示す。
+// CTRL のビット 0 は UART を有効にし、ビット 6 から 15 には分周比から 1 を引いた値を置く。
+// ビット 19 は、送信 FIFO に空きがあることを示す。
+const UART_CTRL_EN: u32 = 1 << 0;
+const UART_CTRL_BAUD_LSB: u32 = 6;
 const UART_CTRL_TX_NFULL: u32 = 1 << 19;
 
 const CLK_HZ: u32 = 25_000_000;
+const UART_BAUD: u32 = 19_200;
 const STEP_MSEC: u32 = 250;
 
-/// ブートローダが設定した速度をそのまま使うため、CTRL は書き換えない。
+// UART はクロックを 2 分周してから、この分周比で 1 ビットの長さを作る。
+// 25 MHz で 19200 baud なら 651 で、分周比の 10 ビットに収まるため、それ以上の前置分周は使わない。
+const UART_BAUD_DIV: u32 = CLK_HZ / (2 * UART_BAUD);
+
+/// ブートローダを通らずに起動するため、UART は自分で設定する。
+fn uart_init() {
+    unsafe {
+        write_volatile(
+            UART0_CTRL,
+            UART_CTRL_EN | (UART_BAUD_DIV - 1) << UART_CTRL_BAUD_LSB,
+        )
+    };
+}
+
 fn uart_put(byte: u8) {
     while unsafe { read_volatile(UART0_CTRL) } & UART_CTRL_TX_NFULL == 0 {}
     unsafe { write_volatile(UART0_DATA, byte as u32) };
@@ -41,6 +58,7 @@ fn wait_msec(msec: u32) {
 
 #[riscv_rt::entry]
 fn main() -> ! {
+    uart_init();
     uart_puts("\nHello from Rust on NEORV32.\n");
     uart_puts("Counting up on the LEDs.\n");
 
