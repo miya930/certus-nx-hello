@@ -21,12 +21,7 @@ impl<'a> Host<'a> {
     pub fn new(mut device: MailMap, mtime: Mtime, mac: [u8; 6], storage: &'a mut [SocketStorage<'a>]) -> Self {
         let config = Config::new(EthernetAddress(mac).into());
         let iface = Interface::new(config, &mut device, Self::now(&mtime));
-        Host {
-            mtime,
-            device,
-            iface,
-            sockets: SocketSet::new(storage),
-        }
+        Host { mtime, device, iface, sockets: SocketSet::new(storage) }
     }
 
     fn now(mtime: &Mtime) -> Instant {

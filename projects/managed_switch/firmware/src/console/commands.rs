@@ -43,14 +43,14 @@ pub struct Commands<'a> {
 }
 
 impl<'a> Commands<'a> {
-    pub fn new(config: &'a mut Config, traffic: &'a mut Traffic, out: &'a mut Output, phy: Dp83867, mtime: Mtime) -> Self {
-        Commands {
-            config,
-            traffic,
-            out,
-            phy,
-            mtime,
-        }
+    pub fn new(
+        config: &'a mut Config,
+        traffic: &'a mut Traffic,
+        out: &'a mut Output,
+        phy: Dp83867,
+        mtime: Mtime,
+    ) -> Self {
+        Commands { config, traffic, out, phy, mtime }
     }
 
     /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映は主ループが行う。
@@ -124,7 +124,15 @@ impl<'a> Commands<'a> {
 
     fn status(&mut self) {
         let out = &mut *self.out;
-        out.header(&[("PORT", 8), ("LINK", 6), ("SPEED", 7), ("DUPLEX", 8), ("RX KBPS", 9), ("TX KBPS", 9), ("NOTE", 0)]);
+        out.header(&[
+            ("PORT", 8),
+            ("LINK", 6),
+            ("SPEED", 7),
+            ("DUPLEX", 8),
+            ("RX KBPS", 9),
+            ("TX KBPS", 9),
+            ("NOTE", 0),
+        ]);
         for (port, name) in PORT_NAMES.iter().enumerate() {
             out.puts_padded(name, 8);
             let (rx_kbps, tx_kbps) = self.traffic.rate_kbps(port);

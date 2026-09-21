@@ -27,12 +27,7 @@ pub struct Console {
 impl Console {
     pub fn new(uart: Uart, phy: Dp83867, mtime: Mtime) -> Self {
         let (tx, rx) = uart.split();
-        Console {
-            input: Input::new(rx),
-            output: Output::new(tx),
-            phy,
-            mtime,
-        }
+        Console { input: Input::new(rx), output: Output::new(tx), phy, mtime }
     }
 
     /// 起動時の知らせのように、コマンドの外から端末に書くときに使う。

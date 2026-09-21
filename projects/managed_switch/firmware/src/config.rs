@@ -20,12 +20,7 @@ impl Config {
     /// Flash に保存した設定を読む。保存していなければ既定値で動く。
     pub fn load(mut flash: Mt25q<Spi>) -> Self {
         let saved = Settings::load(&mut flash);
-        Config {
-            flash,
-            current: saved.unwrap_or(settings::DEFAULT),
-            saved,
-            applied: None,
-        }
+        Config { flash, current: saved.unwrap_or(settings::DEFAULT), saved, applied: None }
     }
 
     pub fn current(&self) -> &Settings {

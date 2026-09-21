@@ -20,9 +20,7 @@ pub struct Device {
 
 impl Device {
     pub const fn new(configbus_base: usize, number: usize) -> Self {
-        Device {
-            base: configbus_base + (number << DEVICE_SHIFT),
-        }
+        Device { base: configbus_base + (number << DEVICE_SHIFT) }
     }
 
     pub fn read(&self, register: usize) -> u32 {

@@ -15,11 +15,7 @@ pub struct Links {
 
 impl Links {
     pub fn new(phy: Dp83867) -> Self {
-        Links {
-            phy,
-            dp83867_up: false,
-            rmii_locked: false,
-        }
+        Links { phy, dp83867_up: false, rmii_locked: false }
     }
 
     /// リンクは MDIO で読むため、主ループから間隔をあけて呼ぶ。

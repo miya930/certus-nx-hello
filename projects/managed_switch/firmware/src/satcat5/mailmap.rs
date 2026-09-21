@@ -69,12 +69,7 @@ pub struct MailMap {
 
 impl MailMap {
     pub const fn new(port: MailMapPort) -> Self {
-        Self {
-            port,
-            rx_buffer: [0; BUFFER_BYTES],
-            tx_buffer: [0; BUFFER_BYTES],
-            rx_count: 0,
-        }
+        Self { port, rx_buffer: [0; BUFFER_BYTES], tx_buffer: [0; BUFFER_BYTES], rx_count: 0 }
     }
 }
 
@@ -111,10 +106,7 @@ impl phy::Device for MailMap {
         if self.port.transmit_busy() {
             return None;
         }
-        Some(TxToken {
-            port: self.port,
-            buffer: &mut self.tx_buffer,
-        })
+        Some(TxToken { port: self.port, buffer: &mut self.tx_buffer })
     }
 }
 

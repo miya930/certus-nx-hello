@@ -29,12 +29,7 @@ impl Spi {
             .unwrap_or((PRESCALERS.len() as u8 - 1, DIVIDERS - 1));
         // 選択値と分周は、どちらも上の表と範囲から選ぶため、欄の幅に収まる。
         regs.ctrl().write(|w| unsafe {
-            w.spi_ctrl_en()
-                .set_bit()
-                .spi_ctrl_prsc()
-                .bits(prescaler)
-                .spi_ctrl_cdiv()
-                .bits(divider as u8)
+            w.spi_ctrl_en().set_bit().spi_ctrl_prsc().bits(prescaler).spi_ctrl_cdiv().bits(divider as u8)
         });
         Spi { regs, chip_select }
     }

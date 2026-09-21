@@ -11,11 +11,7 @@ pub struct Ticker {
 impl Ticker {
     /// 作った直後の due は真になり、最初の処理をすぐに行う。
     pub fn new(mtime: Mtime, period_msec: u64) -> Self {
-        Ticker {
-            mtime,
-            period_msec,
-            next_msec: 0,
-        }
+        Ticker { mtime, period_msec, next_msec: 0 }
     }
 
     /// 周期が来ていれば真を返し、次の時刻を今から 1 周期後にする。
