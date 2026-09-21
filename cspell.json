@@ -16,6 +16,8 @@
     "words": [
         "addar",
         "addrs",
+        "aner",
+        "anlpar",
         "bcast",
         "bmcr",
         "bootrom",
@@ -92,6 +94,7 @@
         "pycache",
         "rcvd",
         "rdat",
+        "recr",
         "refclk",
         "regaddr",
         "regcr",
