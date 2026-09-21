@@ -1,7 +1,8 @@
 //! 外につながる 2 つのポートのリンクを読み、変化をログに出す。
+//! DP83867 のリンクが変わったときは、MAC アドレステーブルを消す。
 
 use crate::dp83867::Dp83867;
-use crate::memory_map::PORT_STATS;
+use crate::memory_map::{PORT_STATS, SWITCH_CORE};
 use crate::ports::PORT_RMII;
 use crate::satcat5::port_stats::RMII_STATUS_LOCK;
 
@@ -35,6 +36,11 @@ impl Links {
             } else {
                 defmt::info!("DP83867 link down");
             }
+            // スイッチコアは、学習した MAC アドレスが別のポートから届いても、表の項目を書き換えない。
+            // 機器を差し替えたときに元のポートへ送り続けないよう、表を消して学び直させる。
+            // ポートは 2 つなので、どちらの向きに差し替えても DP83867 のリンクが変わる。
+            SWITCH_CORE.mac_clear();
+            defmt::info!("Cleared the MAC address table");
         }
         let locked = PORT_STATS.link(PORT_RMII).1 & RMII_STATUS_LOCK != 0;
         if locked != self.rmii_locked {
