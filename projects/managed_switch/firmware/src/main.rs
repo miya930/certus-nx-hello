@@ -3,15 +3,12 @@
 
 mod config;
 mod console;
-mod dp83867;
+mod drivers;
 mod host;
-mod leds;
 mod links;
 mod memory_map;
 mod ports;
-mod satcat5;
 mod settings;
-mod ticker;
 mod traffic;
 
 use defmt_rtt as _;
@@ -19,15 +16,15 @@ use neorv32_hal::{gpio::Gpio, mtime::Mtime, pac, spi::Spi, uart::Uart};
 use smoltcp::iface::SocketStorage;
 
 use config::Config;
-use console::{Console, Style};
-use dp83867::Dp83867;
+use console::Console;
+use drivers::clock::Clock;
+use drivers::dp83867::Dp83867;
+use drivers::leds::Leds;
+use drivers::terminal::{Style, Terminal};
 use host::Host;
-use leds::Leds;
 use links::Links;
-use memory_map::{MAILMAP, MDIO};
+use memory_map::SWITCH;
 use mt25q::Mt25q;
-use satcat5::mailmap::MailMap;
-use ticker::Ticker;
 use traffic::Traffic;
 
 /// コアは、ボードの 25 MHz の SYSTEM_25M_CLK で動く。
@@ -40,7 +37,7 @@ const FLASH_SCK_HZ: u32 = 100_000;
 const FLASH_CS: u8 = 0;
 
 /// ボードの DP83867 は、PHY アドレス 0 で応答する。
-const DP83867_PHY_ADDR: u32 = 0;
+const DP83867_PHY_ADDR: u8 = 0;
 
 /// GPIO の入力の最下位は、PHY のリセットの解除から MDIO を使えるまでの待ちが終わったことを示す。
 const GPIO_IN_PHY_READY: u32 = 1 << 0;
@@ -60,12 +57,13 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 #[riscv_rt::entry]
 fn main() -> ! {
     let peripherals = pac::Peripherals::take().unwrap();
-    let mtime = Mtime::new(peripherals.clint, CLK_HZ);
-    let phy = Dp83867::new(MDIO, DP83867_PHY_ADDR);
+    let clock = Clock::new(Mtime::new(peripherals.clint, CLK_HZ));
+    let phy = Dp83867::new(SWITCH.mdio(), DP83867_PHY_ADDR);
     let gpio = Gpio::new(peripherals.gpio);
 
-    let mut console = Console::new(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD), phy, mtime);
-    let out = console.output();
+    let terminal = Terminal::new(Uart::new(peripherals.uart0, CLK_HZ, CONSOLE_BAUD));
+    let mut console = Console::new(terminal, phy, clock);
+    let out = console.terminal();
     out.puts("\n");
     out.puts_styled(Style::HEADING, "Managed switch on NEORV32.");
     out.puts(" Type \"help\" for the commands.\n");
@@ -75,21 +73,21 @@ fn main() -> ! {
         defmt::info!("Loaded the settings from the SPI Flash");
     } else {
         defmt::warn!("No saved settings in the SPI Flash, using the defaults");
-        console.output().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
+        console.terminal().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
     }
 
     while gpio.read() & GPIO_IN_PHY_READY == 0 {}
     phy.init();
 
     let mut storage: [SocketStorage; 1] = Default::default();
-    let mut host = Host::new(MailMap::new(MAILMAP), mtime, config.current().mac, &mut storage);
+    let mut host = Host::new(SWITCH.cpu_port(), clock, config.current().mac, &mut storage);
     config.apply(&mut host);
 
-    let mut traffic = Traffic::new(mtime);
+    let mut traffic = Traffic::new(clock);
     let mut links = Links::new(phy);
     let mut leds = Leds::new(gpio);
-    let mut sample_timer = Ticker::new(mtime, traffic::SAMPLE_MSEC);
-    let mut link_timer = Ticker::new(mtime, LINK_CHECK_MSEC);
+    let mut sample_timer = clock.ticker(traffic::SAMPLE_MSEC);
+    let mut link_timer = clock.ticker(LINK_CHECK_MSEC);
 
     console.prompt();
 

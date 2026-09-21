@@ -1,9 +1,7 @@
-//! 端末からの入力。1 行ずつ受け取り、行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
-//! 編集中の行は、出力を通して端末に描き直す。
+//! 端末からの入力を 1 行ずつ受け取る。行の編集、ヒストリー、タブ補完を、端末のエスケープシーケンスで行う。
+//! 編集中の行は、端末に描き直す。
 
-use super::output::Output;
-use super::style::Style;
-use neorv32_hal::uart::UartRx;
+use crate::drivers::terminal::{Style, Terminal};
 
 pub const PROMPT: &str = "switch> ";
 pub const LINE_BYTES: usize = 64;
@@ -68,8 +66,7 @@ enum Key {
     Delete,
 }
 
-pub struct Input {
-    rx: UartRx,
+pub struct LineEditor {
     line: Line,
     cursor: usize,
     history: [Line; HISTORY_LINES],
@@ -85,10 +82,9 @@ pub struct Input {
     after_cr: bool,
 }
 
-impl Input {
-    pub fn new(rx: UartRx) -> Self {
-        Input {
-            rx,
+impl LineEditor {
+    pub const fn new() -> Self {
+        LineEditor {
             line: Line::EMPTY,
             cursor: 0,
             history: [Line::EMPTY; HISTORY_LINES],
@@ -101,13 +97,13 @@ impl Input {
         }
     }
 
-    pub fn prompt(&self, out: &mut Output) {
+    pub fn prompt(&self, out: &mut Terminal) {
         out.puts_styled(Style::PROMPT, PROMPT);
     }
 
     /// 届いている文字を処理する。行が確定したらその行を返し、確定する前に文字が尽きたら None を返す。
-    pub fn read_line(&mut self, complete: Completer, out: &mut Output) -> Option<&str> {
-        while let Some(byte) = self.rx.read_byte() {
+    pub fn read_line(&mut self, complete: Completer, out: &mut Terminal) -> Option<&str> {
+        while let Some(byte) = out.read_byte() {
             if self.feed(byte, complete, out) {
                 return Some(self.entered.as_str());
             }
@@ -116,7 +112,7 @@ impl Input {
     }
 
     /// 1 バイトを処理し、行が確定したら真を返す。
-    fn feed(&mut self, byte: u8, complete: Completer, out: &mut Output) -> bool {
+    fn feed(&mut self, byte: u8, complete: Completer, out: &mut Terminal) -> bool {
         let after_cr = self.after_cr;
         self.after_cr = byte == CR;
 
@@ -216,7 +212,7 @@ impl Input {
         false
     }
 
-    fn key(&mut self, key: Key, out: &mut Output) {
+    fn key(&mut self, key: Key, out: &mut Terminal) {
         match key {
             Key::Left if self.cursor > 0 => self.move_to(self.cursor - 1, out),
             Key::Right if self.cursor < self.line.len => self.move_to(self.cursor + 1, out),
@@ -230,7 +226,7 @@ impl Input {
     }
 
     /// 行頭から描き直し、行末の残りを消してから、カーソルを編集位置へ戻す。
-    fn refresh(&self, out: &mut Output) {
+    fn refresh(&self, out: &mut Terminal) {
         out.put(CR);
         self.prompt(out);
         out.puts(self.line.as_str());
@@ -238,7 +234,7 @@ impl Input {
         Self::cursor_back(self.line.len - self.cursor, out);
     }
 
-    fn cursor_back(columns: usize, out: &mut Output) {
+    fn cursor_back(columns: usize, out: &mut Terminal) {
         if columns > 0 {
             out.puts("\x1b[");
             out.put_dec(columns as u32);
@@ -246,18 +242,18 @@ impl Input {
         }
     }
 
-    fn move_to(&mut self, position: usize, out: &mut Output) {
+    fn move_to(&mut self, position: usize, out: &mut Terminal) {
         self.cursor = position;
         self.refresh(out);
     }
 
-    fn set_line(&mut self, line: Line, out: &mut Output) {
+    fn set_line(&mut self, line: Line, out: &mut Terminal) {
         self.line = line;
         self.cursor = line.len;
         self.refresh(out);
     }
 
-    fn insert(&mut self, text: &[u8], out: &mut Output) {
+    fn insert(&mut self, text: &[u8], out: &mut Terminal) {
         let count = text.len().min(LINE_BYTES - self.line.len);
         if count == 0 {
             out.put(BELL);
@@ -278,7 +274,7 @@ impl Input {
         }
     }
 
-    fn remove(&mut self, start: usize, end: usize, out: &mut Output) {
+    fn remove(&mut self, start: usize, end: usize, out: &mut Terminal) {
         if start == end {
             return;
         }
@@ -288,7 +284,7 @@ impl Input {
         self.refresh(out);
     }
 
-    fn backspace(&mut self, out: &mut Output) {
+    fn backspace(&mut self, out: &mut Terminal) {
         if self.cursor > 0 {
             self.remove(self.cursor - 1, self.cursor, out);
         }
@@ -309,7 +305,7 @@ impl Input {
         start
     }
 
-    fn enter(&mut self, out: &mut Output) {
+    fn enter(&mut self, out: &mut Terminal) {
         out.puts("\n");
         let line = self.line;
         if !line.as_str().trim().is_empty() {
@@ -326,7 +322,7 @@ impl Input {
         self.entered = line;
     }
 
-    fn browse_history(&mut self, older: bool, out: &mut Output) {
+    fn browse_history(&mut self, older: bool, out: &mut Terminal) {
         let next = match (self.browse, older) {
             (None, true) if self.history_count > 0 => Some(0),
             (Some(index), true) if index + 1 < self.history_count => Some(index + 1),
@@ -349,7 +345,7 @@ impl Input {
     }
 
     /// 候補が 1 つなら単語を完成させ、複数なら共通の部分まで延ばし、それ以上延びなければ一覧を出す。
-    fn complete(&mut self, complete: Completer, out: &mut Output) {
+    fn complete(&mut self, complete: Completer, out: &mut Terminal) {
         let start = self.word_start(false);
         let mut candidates: [&'static str; MAX_CANDIDATES] = [""; MAX_CANDIDATES];
         let mut count = 0;

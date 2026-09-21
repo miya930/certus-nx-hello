@@ -2,7 +2,7 @@
 
 mod registers;
 
-use crate::satcat5::mdio::Mdio;
+use super::switch::Mdio;
 use registers::*;
 
 // RGMIICTL は、RGMII を有効にし、送信と受信のクロックをデータに対してずらす設定にする。
@@ -31,15 +31,15 @@ pub struct Status {
 #[derive(Clone, Copy)]
 pub struct Dp83867 {
     mdio: Mdio,
-    phy_addr: u32,
+    phy_addr: u8,
 }
 
 impl Dp83867 {
-    pub const fn new(mdio: Mdio, phy_addr: u32) -> Self {
+    pub const fn new(mdio: Mdio, phy_addr: u8) -> Self {
         Dp83867 { mdio, phy_addr }
     }
 
-    fn write(&self, register: u32, value: u16) {
+    fn write(&self, register: u8, value: u16) {
         self.mdio.write(self.phy_addr, register, value);
     }
 

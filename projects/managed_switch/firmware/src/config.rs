@@ -2,7 +2,7 @@
 //! コンソールのコマンドは動作中の設定を書き換え、主ループが apply でスイッチに反映する。
 
 use crate::host::Host;
-use crate::memory_map::SWITCH_CORE;
+use crate::memory_map::SWITCH;
 use crate::settings::{self, Settings};
 use mt25q::Mt25q;
 use neorv32_hal::spi::Spi;
@@ -51,7 +51,7 @@ impl Config {
             return;
         }
         host.configure(&self.current);
-        SWITCH_CORE.set_promiscuous(self.current.mirror.map_or(0, |port| 1 << port));
+        SWITCH.set_promiscuous(self.current.mirror.map_or(0, |port| 1 << port));
         self.applied = Some(self.current);
     }
 }

@@ -1,7 +1,11 @@
-//! 端末への出力。文字、数、アドレス、表の見出しを、端末に合わせた形で書く。
+//! FT2232H の Port B につながる UART0 の端末。
+//! 文字、数、アドレス、表の見出しを端末に合わせた形で書き、届いた文字を 1 バイトずつ読む。
 
-use super::style::Style;
-use neorv32_hal::uart::UartTx;
+mod style;
+
+pub use style::Style;
+
+use neorv32_hal::uart::{Uart, UartRx, UartTx};
 
 /// u64 の最大値の桁数。
 const DECIMAL_DIGITS: usize = 20;
@@ -11,13 +15,20 @@ const SEC_PER_MIN: u64 = 60;
 const MIN_PER_HOUR: u64 = 60;
 const HOUR_PER_DAY: u64 = 24;
 
-pub struct Output {
+pub struct Terminal {
     tx: UartTx,
+    rx: UartRx,
 }
 
-impl Output {
-    pub fn new(tx: UartTx) -> Self {
-        Output { tx }
+impl Terminal {
+    pub fn new(uart: Uart) -> Self {
+        let (tx, rx) = uart.split();
+        Terminal { tx, rx }
+    }
+
+    /// 届いたバイトを 1 つ取り出す。届いていなければ None を返す。
+    pub fn read_byte(&mut self) -> Option<u8> {
+        self.rx.read_byte()
     }
 
     pub fn put(&mut self, byte: u8) {

@@ -100,7 +100,8 @@ ConfigBus のアドレスは、ビット 19 から 12 がデバイス番号、�
 | 3 `cfgbus_mdio` | 0 | 読み書き | 書くと MDIO の操作を積み、読むと結果を取り出す | PHY の設定、`status`、LED |
 
 統計のポートの番号は、0 が RGMII、1 が RMII、2 が CPU である。
-MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/dp83867/` にある。
+MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/drivers/dp83867/` にある。
+ファームウェアは、この表のレジスタを書いた `crates/satcat5-pac/satcat5.svd` から生成した型で読み書きする。
 各レジスタの全体の定義は、SatCat5 の次のファイルの先頭のコメントにある。
 
 - `switch_core`: `third_party/satcat5/src/vhdl/common/switch_types.vhd` のうち、ConfigBus のレジスタの一覧
@@ -188,7 +189,7 @@ RGMII のクロックのずれも同じ MDIO の書き込みで PHY に作らせ
 
 PHY のリセットの解除から MDIO を使えるまでの待ちは、FPGA の回路が数える。
 待ちが終わると GPIO の入力の最下位が 1 になり、ファームウェアはそれを見てから MDIO で PHY を設定する。
-書き込むレジスタと値は、`firmware/src/dp83867/` にある。
+書き込むレジスタと値は、`firmware/src/drivers/dp83867/` にある。
 
 MDIO のデータ線は双方向で、SatCat5 の `cfgbus_mdio` は下の階層で 3 状態の出力を作る。
 GHDL で合成すると、下の階層を通る双方向のポートはトップのポートとのつながりが切れる。
@@ -297,9 +298,25 @@ SPI のクロックは約 98 kHz にする。
 
 ### ファームウェア
 
-ファームウェアは `port_mailmap` を smoltcp の `Device` として扱う。
+![ファームウェアの層](doc/managed_switch_firmware.svg)
+
+ファームウェアは、アプリ、ドライバ、レジスタ操作の 3 つの層に分ける。
+ドライバは、ボードや FPGA の中のデバイス 1 つにつき 1 つの型にする。
+アプリは、ドライバの型を通してデバイスを使う。
+
+SatCat5 のスイッチコア、CPU のポート、ポートごとの統計、MDIO は、ConfigBus の別々のデバイスである。
+ファームウェアでは、これらをまとめて 1 つのスイッチングハブ `Switch` として扱う。
+DP83867 は、`Switch` の MDIO を通して読み書きする。
+
+レジスタの型は、NEORV32 と SatCat5 のどちらも、SVD から svd2rust で生成する。
+SatCat5 の SVD は、`crates/satcat5-pac/satcat5.svd` に書いた。
+SatCat5 のデバイスの番地は、`firmware/src/memory_map.rs` で与える。
+
+`port_mailmap` は、`Switch` から smoltcp の `Device` として取り出す。
 ARP と ICMP の echo には smoltcp が応答するため、ソケットは開かない。
+
 主ループは、次の処理を順に繰り返す。
+周期のある処理は、`Clock` から作った `Ticker` で時刻を見て行う。
 
 | 処理 | 周期 | 型 |
 |---|---|---|
@@ -307,39 +324,47 @@ ARP と ICMP の echo には smoltcp が応答するため、ソケットは開�
 | 端末の入力を読み、コマンドを実行する | 毎回 | `Console` |
 | 設定が変わっていれば、スイッチに反映する | 毎回 | `Config` |
 | ポートの統計を取り込む | 1 秒 | `Traffic` |
-| リンクを読んで LED に出し、変化をログに出す | 500 ms | `Links`、`Leds` |
+| リンクを読んで変化をログに出し、LED のリンクと点滅を切り替える | 500 ms | `Links`、`Leds` |
+| CPU のポートで受け取ったフレームの数を LED に出す | 毎回 | `Leds` |
+
+割り込みは使わず、全ての処理を主ループの中で順に行う。
+そのため、1 つの処理が長くかかると、ほかの処理はその間待たされる。
+周期のある処理は、主ループが遅れても遅れた分を取り戻さず、遅れた時刻から次の周期を数える。
+
+端末への出力は、UART の送信の FIFO の 64 バイトを超えると、115200 bps で送り終わるのを待つ。
+例えば 1 KB を出すコマンドは、約 80 ms の間、主ループを止める。
+
+何もしていないとき、主ループは 1 秒に約 4400 回まわる。
+CPU のポートで 1000 バイトの ping を 1 つ処理すると、その回の主ループは約 8 ms かかる。
+この ping を 1 秒に 100 回送ると、主ループは 1 秒に約 1100 回に落ち、ping の約 3% が失われる。
 
 コマンドが書き換えるのは、動作中の設定と統計だけである。
 そのため `Console` には、`Config` と `Traffic` だけを渡す。
 
 `firmware/src/` は、役割ごとに次のように分ける。
 
-| 場所 | 役割 |
-|---|---|
-| `main.rs` | 起動と主ループ |
-| `memory_map.rs` | ConfigBus のデバイスの番地 |
-| `ports.rs` | スイッチのポートの番号と名前 |
-| `config.rs` | 動作中の設定と保存した設定を持ち、変わった設定をスイッチに反映する |
-| `settings.rs` | 設定の値と、Flash に保存する書式 |
-| `host.rs` | スイッチ自身の IP アドレスでの通信 |
-| `traffic.rs` | ポートごとの送受信の累計と速さ |
-| `links.rs` | 外につながる 2 つのポートのリンクと、その変化での MAC アドレステーブルの消去 |
-| `ticker.rs` | 一定の周期で処理を行うための時計 |
-| `leds.rs` | ボードの汎用 LED への表示 |
-| `console/` | コンソールの端末の入出力、文字の色、行の編集、コマンド |
-| `satcat5/` | SatCat5 の ConfigBus のデバイス |
-| `dp83867/` | ボードの Ethernet PHY の DP83867 |
-| `mt25q/` | ボードの SPI Flash の MT25QU128 |
+| 場所 | 層 | 役割 |
+|---|---|---|
+| `main.rs` | | 起動と主ループ |
+| `memory_map.rs` | | ConfigBus のデバイスの番地 |
+| `ports.rs` | | スイッチのポートの番号と名前 |
+| `host.rs` | アプリ | スイッチ自身の IP アドレスでの通信 |
+| `console/` | アプリ | 行の編集とコマンド |
+| `config.rs` | アプリ | 動作中の設定と保存した設定を持ち、変わった設定をスイッチに反映する |
+| `settings.rs` | アプリ | 設定の値と、Flash に保存する書式 |
+| `traffic.rs` | アプリ | ポートごとの送受信の累計と速さ |
+| `links.rs` | アプリ | 外につながる 2 つのポートのリンクと、その変化での MAC アドレステーブルの消去 |
+| `drivers/terminal/` | ドライバ | UART0 の端末への書式付きの出力と、1 バイトずつの入力 |
+| `drivers/leds.rs` | ドライバ | ボードの汎用 LED |
+| `drivers/clock.rs` | ドライバ | CLINT のマシンタイマによる時刻と、一定の周期で処理を行うための `Ticker` |
+| `drivers/dp83867/` | ドライバ | ボードの Ethernet PHY の DP83867 |
+| `drivers/switch/` | ドライバ | SatCat5 のスイッチングハブ |
 
-レジスタを直接読み書きするのは、次の層だけにする。
-上の層は、これらの型を通して周辺を使う。
+ボードの SPI Flash の MT25QU128 のドライバは、起動 ROM や Flash の書き込みプログラムと共有するため、`crates/mt25q` に置く。
+レジスタ操作の層は、`crates/neorv32-hal`、`crates/neorv32-pac`、`crates/satcat5-pac` にある。
 
-- NEORV32 に内蔵の UART、SPI、GPIO、マシンタイマは、`crates/neorv32-hal` を通して使う。
-- SatCat5 の ConfigBus のデバイスは、`firmware/src/satcat5/` の型を通して使う。
-- 各デバイスの番地は、`firmware/src/memory_map.rs` だけに書く。
-
-`dp83867/` と `mt25q/` では、型とその操作を `mod.rs` に置き、レジスタや命令の番号を別のファイルに分ける。
-DP83867 は MDIO の型を通して、MT25QU128 は embedded-hal の `SpiDevice` を通して読み書きする。
+`drivers/switch/` では、`Switch` の操作を、ConfigBus のデバイスごとのファイルに分ける。
+`drivers/dp83867/` では、型とその操作を `mod.rs` に置き、レジスタの番号を `registers.rs` に分ける。
 
 `cargo run` で JTAG から書き込むための対処は、`projects/riscv_rust/README.md` にまとめてある。
 このプロジェクトでは、それに加えて次の 2 つをした。

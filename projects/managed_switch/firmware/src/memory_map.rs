@@ -1,10 +1,12 @@
 //! このプロジェクトで、ConfigBus のデバイスがどこにあるか。
 //! 番地は hdl/managed_switch.vhd と合わせる。NEORV32 に内蔵の周辺の番地は neorv32-pac にある。
 
-use crate::satcat5::{mailmap::MailMapPort, mdio::Mdio, port_stats::PortStats, switch_core::SwitchCore, Device};
+use crate::drivers::switch::{Addresses, Switch};
 
 /// ConfigBus は、CPU の外部バスのこの位置から見える。
 const CONFIGBUS_BASE: usize = 0x9000_0000;
+/// デバイスごとに 1024 個のレジスタがあり、デバイス番号を 12 ビット左に寄せた位置に並ぶ。
+const DEVICE_SHIFT: usize = 12;
 
 // デバイス番号は、managed_switch.vhd の DEV_* に合わせる。
 const DEV_SWITCH: usize = 0;
@@ -12,7 +14,13 @@ const DEV_MAILMAP: usize = 1;
 const DEV_STATS: usize = 2;
 const DEV_MDIO: usize = 3;
 
-pub const SWITCH_CORE: SwitchCore = SwitchCore::new(Device::new(CONFIGBUS_BASE, DEV_SWITCH));
-pub const MAILMAP: MailMapPort = MailMapPort::new(Device::new(CONFIGBUS_BASE, DEV_MAILMAP));
-pub const PORT_STATS: PortStats = PortStats::new(Device::new(CONFIGBUS_BASE, DEV_STATS));
-pub const MDIO: Mdio = Mdio::new(Device::new(CONFIGBUS_BASE, DEV_MDIO));
+const fn device(number: usize) -> usize {
+    CONFIGBUS_BASE + (number << DEVICE_SHIFT)
+}
+
+pub const SWITCH: Switch = Switch::new(Addresses {
+    core: device(DEV_SWITCH),
+    mailmap: device(DEV_MAILMAP),
+    stats: device(DEV_STATS),
+    mdio: device(DEV_MDIO),
+});
