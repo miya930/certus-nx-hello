@@ -15,8 +15,22 @@ pub struct Totals {
     pub rx_bytes: u64,
     pub tx_frames: u64,
     pub tx_bytes: u64,
-    pub discards: u64,
-    pub errors: u64,
+    pub rx_overflows: u64,
+    pub tx_overflows: u64,
+    pub frame_errors: u64,
+    pub mii_errors: u64,
+}
+
+impl Totals {
+    /// FIFO があふれて捨てたフレームの数。
+    pub fn discards(&self) -> u64 {
+        self.rx_overflows + self.tx_overflows
+    }
+
+    /// MAC と PHY のエラーと、誤ったフレームの数。
+    pub fn errors(&self) -> u64 {
+        self.frame_errors + self.mii_errors
+    }
 }
 
 pub struct Traffic {
@@ -49,12 +63,18 @@ impl Traffic {
         SWITCH.refresh_stats(&mut self.clock);
         for (port, totals) in self.totals.iter_mut().enumerate() {
             let counts = SWITCH.port_counts(port);
-            if counts.errors != 0 || counts.discards != 0 {
+            if counts.frame_errors != 0
+                || counts.mii_errors != 0
+                || counts.rx_overflows != 0
+                || counts.tx_overflows != 0
+            {
                 defmt::warn!(
-                    "{=str} port: {=u32} errors, {=u32} discards",
+                    "{=str} port: {=u32} frame errors, {=u32} MAC/PHY errors, {=u32} Rx overflows, {=u32} Tx overflows",
                     PORT_NAMES[port],
-                    counts.errors,
-                    counts.discards
+                    counts.frame_errors,
+                    counts.mii_errors,
+                    counts.rx_overflows,
+                    counts.tx_overflows
                 );
             }
             totals.rx_frames += counts.rx_frames as u64;
@@ -62,8 +82,10 @@ impl Traffic {
             totals.rx_bytes += counts.rx_bytes as u64;
             totals.tx_frames += counts.tx_frames as u64;
             totals.tx_bytes += counts.tx_bytes as u64;
-            totals.discards += counts.discards as u64;
-            totals.errors += counts.errors as u64;
+            totals.rx_overflows += counts.rx_overflows as u64;
+            totals.tx_overflows += counts.tx_overflows as u64;
+            totals.frame_errors += counts.frame_errors as u64;
+            totals.mii_errors += counts.mii_errors as u64;
             self.last_rx_bytes[port] = counts.rx_bytes;
             self.last_tx_bytes[port] = counts.tx_bytes;
         }

@@ -18,10 +18,14 @@ pub struct Counts {
     pub rx_frames: u32,
     pub tx_bytes: u32,
     pub tx_frames: u32,
-    /// 受信と送信の FIFO があふれて捨てたフレームの数。
-    pub discards: u32,
-    /// MAC と PHY のエラーと、FCS や長さの誤ったフレームの数。
-    pub errors: u32,
+    /// 受信の FIFO があふれて捨てたフレームの数。
+    pub rx_overflows: u32,
+    /// 送信の FIFO があふれて捨てたフレームの数。
+    pub tx_overflows: u32,
+    /// FCS や長さの誤った受信のフレームの数。
+    pub frame_errors: u32,
+    /// 受信と送信で MAC と PHY が報告したエラーの数。
+    pub mii_errors: u32,
 }
 
 /// リンクの状態は、取り込みを待たずに今の値を返す。
@@ -50,8 +54,10 @@ impl Switch {
             rx_frames: stats.rcvd_frames().read().bits(),
             tx_bytes: stats.sent_bytes().read().bits(),
             tx_frames: stats.sent_frames().read().bits(),
-            discards: u32::from(errors.ovr_tx().bits()) + u32::from(errors.ovr_rx().bits()),
-            errors: u32::from(errors.mii().bits()) + u32::from(errors.pkt().bits()),
+            rx_overflows: errors.ovr_rx().bits().into(),
+            tx_overflows: errors.ovr_tx().bits().into(),
+            frame_errors: errors.pkt().bits().into(),
+            mii_errors: errors.mii().bits().into(),
         }
     }
 

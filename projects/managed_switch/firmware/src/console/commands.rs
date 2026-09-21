@@ -9,16 +9,36 @@ use crate::memory_map::SWITCH;
 use crate::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
 use crate::traffic::Traffic;
 
-const COMMANDS: [(&str, &str); 9] = [
-    ("help", "Show this list."),
-    ("status", "Show the link state and the load of each port."),
-    ("stats", "Show the traffic since boot. \"stats clear\" restarts the count."),
-    ("mac", "Show the MAC address table. \"mac clear\" empties it."),
-    ("info", "Show the parameters of the switch core and the uptime."),
-    ("show", "Show the settings."),
-    ("set", "Change a setting. Type \"set\" for the list."),
-    ("save", "Save the settings to the SPI Flash."),
-    ("defaults", "Restore the default settings. Use \"save\" to keep them."),
+/// help の一覧の 1 項目。引数を付けた形は、コマンドだけの形の下に並べる。
+struct Command {
+    name: &'static str,
+    text: &'static str,
+    /// 引数と、その形で何をするか。
+    forms: &'static [(&'static str, &'static str)],
+}
+
+const COMMANDS: [Command; 9] = [
+    Command { name: "help", text: "Show this list.", forms: &[] },
+    Command {
+        name: "status",
+        text: "Show the link state and the load of each port.",
+        forms: &[("PORT", "Show the details of one port: rgmii, rmii or cpu.")],
+    },
+    Command { name: "stats", text: "Show the traffic since boot.", forms: &[(CLEAR_WORD, "Restart the count.")] },
+    Command {
+        name: "mac",
+        text: "Show the MAC address table.",
+        forms: &[(CLEAR_WORD, "Empty the MAC address table.")],
+    },
+    Command { name: "info", text: "Show the parameters of the switch core and the uptime.", forms: &[] },
+    Command { name: "show", text: "Show the settings.", forms: &[] },
+    Command {
+        name: "set",
+        text: "List the settings and the values they take.",
+        forms: &[("ITEM VALUE", "Change a setting.")],
+    },
+    Command { name: "save", text: "Save the settings to the SPI Flash.", forms: &[] },
+    Command { name: "defaults", text: "Restore the default settings. Use \"save\" to keep them.", forms: &[] },
 ];
 
 const SET_ITEMS: [(&str, &str); 4] = [
@@ -30,7 +50,8 @@ const SET_ITEMS: [(&str, &str); 4] = [
 
 const NONE_WORD: &str = "none";
 const CLEAR_WORD: &str = "clear";
-const HELP_COLUMN: usize = 10;
+const HELP_COLUMN: usize = 16;
+const DETAIL_COLUMN: usize = 21;
 
 /// 1 行のコマンドを実行する間だけ、設定、統計、出力を借りる。
 pub struct Commands<'a> {
@@ -60,7 +81,7 @@ impl<'a> Commands<'a> {
         };
         match command {
             "help" => self.help(),
-            "status" => self.status(),
+            "status" => self.status(words.next()),
             "stats" => self.stats(words.next()),
             "mac" => self.mac(words.next()),
             "info" => self.info(),
@@ -83,7 +104,8 @@ impl<'a> Commands<'a> {
     pub fn complete(context: &str, emit: &mut dyn FnMut(&'static str)) {
         let mut words = context.split_ascii_whitespace();
         match (words.next(), words.next(), words.next()) {
-            (None, _, _) => COMMANDS.iter().for_each(|(name, _)| emit(name)),
+            (None, _, _) => COMMANDS.iter().for_each(|command| emit(command.name)),
+            (Some("status"), None, _) => PORT_NAMES.iter().for_each(|name| emit(name)),
             (Some("set"), None, _) => SET_ITEMS.iter().for_each(|(name, _)| emit(name)),
             (Some("set"), Some("mirror"), None) => {
                 PORT_NAMES.iter().for_each(|name| emit(name));
@@ -105,10 +127,17 @@ impl<'a> Commands<'a> {
     }
 
     fn help(&mut self) {
-        for (name, text) in COMMANDS {
-            self.out.puts_styled_padded(Style::HEADING, name, HELP_COLUMN);
-            self.out.puts(text);
+        for command in &COMMANDS {
+            self.out.puts_styled_padded(Style::HEADING, command.name, HELP_COLUMN);
+            self.out.puts(command.text);
             self.out.puts("\n");
+            for &(argument, text) in command.forms {
+                self.out.puts_styled(Style::HEADING, command.name);
+                self.out.put(b' ');
+                self.out.puts_padded(argument, HELP_COLUMN - command.name.len() - 1);
+                self.out.puts(text);
+                self.out.puts("\n");
+            }
         }
     }
 
@@ -121,7 +150,17 @@ impl<'a> Commands<'a> {
         self.out.set_style(Style::NORMAL);
     }
 
-    fn status(&mut self) {
+    fn status(&mut self, argument: Option<&str>) {
+        match argument {
+            None => self.status_table(),
+            Some(name) => match Self::parse_port(name) {
+                Some(port) => self.port_details(port as usize),
+                None => self.error(&["Unknown port \"", name, "\".\n"]),
+            },
+        }
+    }
+
+    fn status_table(&mut self) {
         let out = &mut *self.out;
         out.header(&[
             ("PORT", 8),
@@ -185,11 +224,137 @@ impl<'a> Commands<'a> {
         out.puts("Load is measured over the last second.\n");
     }
 
+    fn label(&mut self, text: &str) {
+        self.out.puts_padded(text, DETAIL_COLUMN);
+    }
+
+    /// 1 つのポートの状態と、数えている間の送受信とエラーの内訳を出す。
+    fn port_details(&mut self, port: usize) {
+        self.label("Port:");
+        self.out.puts(PORT_NAMES[port]);
+        self.out.puts("\n");
+        match port {
+            PORT_RGMII => self.dp83867_details(),
+            PORT_RMII => self.lan8720_details(),
+            _ => {
+                self.label("Device:");
+                self.out.puts("NEORV32\n");
+                self.label("Link:");
+                self.out.puts_styled(Style::OK, "up\n");
+            }
+        }
+        let (rx_kbps, tx_kbps) = self.traffic.rate_kbps(port);
+        self.label("Load:");
+        self.out.puts("RX ");
+        self.out.put_dec(rx_kbps);
+        self.out.puts(" kbps, TX ");
+        self.out.put_dec(tx_kbps);
+        self.out.puts(" kbps in the last second\n");
+
+        let totals = self.traffic.totals[port];
+        self.out.puts("\nCounted over ");
+        self.out.put_duration(self.traffic.counted_msec());
+        self.out.puts(":\n");
+        for (name, count) in [
+            ("RX frames:", totals.rx_frames),
+            ("RX broadcast frames:", totals.rx_broadcast),
+            ("RX bytes:", totals.rx_bytes),
+            ("TX frames:", totals.tx_frames),
+            ("TX bytes:", totals.tx_bytes),
+        ] {
+            self.label(name);
+            self.out.put_dec(count);
+            self.out.puts("\n");
+        }
+        for (name, count) in [
+            ("RX FIFO overflows:", totals.rx_overflows),
+            ("TX FIFO overflows:", totals.tx_overflows),
+            ("Frame errors:", totals.frame_errors),
+            ("MAC/PHY errors:", totals.mii_errors),
+        ] {
+            self.label(name);
+            self.put_count(count, 0);
+            self.out.puts("\n");
+        }
+        if port == PORT_RGMII {
+            self.label("PHY receive errors:");
+            self.put_count(self.phy.receive_errors().into(), 0);
+            self.out.puts("\n");
+        }
+    }
+
+    /// 速度、二重、MDI-X、相手の能力は、リンクしているときだけ意味を持つ。
+    fn dp83867_details(&mut self) {
+        let status = self.phy.status();
+        self.label("Device:");
+        self.out.puts("DP83867\n");
+        self.label("Link:");
+        if !status.link {
+            self.out.puts_styled(Style::ERROR, "down\n");
+            return;
+        }
+        self.out.puts_styled(Style::OK, "up\n");
+        self.label("Speed:");
+        self.out.put_dec(status.speed_mbps);
+        self.out.puts(" Mbps\n");
+        self.label("Duplex:");
+        self.out.puts(if status.full_duplex { "full\n" } else { "half\n" });
+        self.label("MDI:");
+        self.out.puts(if status.mdi_x { "MDI-X\n" } else { "MDI\n" });
+        self.label("Partner abilities:");
+        let Some(partner) = self.phy.partner() else {
+            self.out.puts("no auto-negotiation\n");
+            return;
+        };
+        self.put_list(&[
+            (partner.full_1000, "1000 full"),
+            (partner.half_1000, "1000 half"),
+            (partner.full_100, "100 full"),
+            (partner.half_100, "100 half"),
+            (partner.full_10, "10 full"),
+            (partner.half_10, "10 half"),
+        ]);
+        self.label("Partner pause:");
+        self.put_list(&[(partner.pause, "symmetric"), (partner.asymmetric_pause, "asymmetric")]);
+    }
+
+    /// 当てはまる項目の名前を、コンマで区切って 1 行に並べる。
+    fn put_list(&mut self, items: &[(bool, &str)]) {
+        let mut separator = "";
+        for (_, name) in items.iter().filter(|(applies, _)| *applies) {
+            self.out.puts(separator);
+            self.out.puts(name);
+            separator = ", ";
+        }
+        if separator.is_empty() {
+            self.out.puts(NONE_WORD);
+        }
+        self.out.puts("\n");
+    }
+
+    /// LAN8720 の MDIO は PMOD に出していないため、RMII のポートが報告する REF_CLK のロックと速度を出す。
+    fn lan8720_details(&mut self) {
+        let link = SWITCH.port_link(PORT_RMII);
+        self.label("Device:");
+        self.out.puts("LAN8720\n");
+        self.label("REF_CLK:");
+        // REF_CLK が来ていないときの速度は意味を持たない。
+        if link.status & RMII_STATUS_LOCK == 0 {
+            self.out.puts_styled(Style::WARNING, "not locked\n");
+            return;
+        }
+        self.out.puts_styled(Style::OK, "locked\n");
+        self.label("Speed:");
+        self.out.put_dec(link.speed_mbps);
+        self.out.puts(" Mbps\n");
+    }
+
     fn stats(&mut self, argument: Option<&str>) {
         match argument {
             None => {}
             Some(CLEAR_WORD) => {
                 self.traffic.clear();
+                self.phy.clear_receive_errors();
                 self.out.puts_styled(Style::OK, "Cleared the counters.\n");
                 return;
             }
@@ -213,8 +378,8 @@ impl<'a> Commands<'a> {
             self.out.put_dec_padded(totals.rx_bytes, 12);
             self.out.put_dec_padded(totals.tx_frames, 11);
             self.out.put_dec_padded(totals.tx_bytes, 12);
-            self.put_count(totals.discards, 10);
-            self.put_count(totals.errors, 0);
+            self.put_count(totals.discards(), 10);
+            self.put_count(totals.errors(), 0);
             self.out.puts("\n");
         }
         self.out.puts("Counted over ");
