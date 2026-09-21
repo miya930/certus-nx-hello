@@ -7,6 +7,10 @@ edition = "2021"
 riscv-rt = { version = "0.18", features = ["single-hart"] }
 panic-halt = "1.0"
 
+# 命令メモリは 16 KB で、最適化しないとファームウェアが入りきらないため、開発用のビルドでも大きさを詰める。
+[profile.dev]
+opt-level = "s"
+
 [profile.release]
 opt-level = "s"
 lto = true

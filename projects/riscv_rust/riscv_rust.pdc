@@ -4,6 +4,12 @@ ldc_set_location -site {J16} [get_ports pushbutton3]
 ldc_set_location -site {F10} [get_ports txd_uart]
 ldc_set_location -site {E13} [get_ports rxd_uart]
 
+# JTAG は PMOD の J5 の 1 番から 4 番に出す。
+ldc_set_location -site {J11} [get_ports jtag_tck]
+ldc_set_location -site {J12} [get_ports jtag_tms]
+ldc_set_location -site {K11} [get_ports jtag_tdi]
+ldc_set_location -site {K12} [get_ports jtag_tdo]
+
 ldc_set_location -site {B3} [get_ports {led[0]}]
 ldc_set_location -site {A2} [get_ports {led[1]}]
 ldc_set_location -site {H16} [get_ports {led[2]}]
@@ -17,6 +23,12 @@ ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports system_25m_clk]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports pushbutton3]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports txd_uart]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports rxd_uart]
+# プローブを外しているときに TAP が動かないよう、TCK は 0、TMS と TDI は 1 に引いておく。
+# TMS が 1 のままなら、TAP はリセットの状態に留まる。
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=DOWN} [get_ports jtag_tck]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports jtag_tms]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33 PULLMODE=UP} [get_ports jtag_tdi]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports jtag_tdo]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[0]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[1]}]
 ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[2]}]
