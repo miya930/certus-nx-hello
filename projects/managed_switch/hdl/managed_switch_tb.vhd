@@ -15,6 +15,10 @@ constant SYS_CLK_PERIOD : time := 1 sec / SYS_CLK_HZ;
 constant RMII_CLK_HZ    : positive := 50_000_000;
 constant RMII_CLK_PERIOD : time := 1 sec / RMII_CLK_HZ;
 
+-- LAN8720 のモジュールはそれぞれ発振器を持つため、REF_CLK の位相をポートごとにずらす。
+constant RMII_COUNT     : positive := 2;
+constant RMII_PHASE_STEP : time := 7 ns;
+
 -- 基板では DP83867 が 100BASE-TX でリンクするため、RGMII も 100 Mbps の 25 MHz で動かす。
 constant RGMII_CLK_HZ   : positive := 25_000_000;
 constant RGMII_CLK_PERIOD : time := 1 sec / RGMII_CLK_HZ;
@@ -52,6 +56,7 @@ constant PREAMBLE       : byte_array_t(0 to 7) := (
     ETH_AMBLE_PRE, ETH_AMBLE_PRE, ETH_AMBLE_PRE, ETH_AMBLE_SOF);
 
 -- 宛先をブロードキャストにし、スイッチが送信元のポート以外の全てへ送るようにする。
+-- 送信元の MAC アドレスは、送り出すポートごとに変える。
 -- ビットの並びの誤りがどこでも見つかるよう、ペイロードには連番を入れる。
 function make_frame(src : mac_addr_t) return byte_array_t is
     constant header : std_logic_vector(111 downto 0) := MAC_ADDR_BROADCAST & src & ETHERTYPE;
@@ -94,12 +99,52 @@ begin
     return true;
 end function;
 
-constant FRAME_FROM_RMII  : byte_array_t := make_frame(x"020000000001");
-constant FRAME_FROM_RGMII : byte_array_t := make_frame(x"020000000002");
+-- ポートの番号は、0 が RGMII で、1 から RMII が並ぶ。
+subtype port_t is natural range 0 to RMII_COUNT;
+constant PORT_RGMII : port_t := 0;
+
+type frame_list_t is array(port_t) of byte_array_t(0 to FRAME_BYTES + FCS_BYTES - 1);
+
+function make_frames return frame_list_t is
+    variable frames : frame_list_t;
+begin
+    for n in port_t loop
+        frames(n) := make_frame(x"0200000000" & std_logic_vector(to_unsigned(n + 1, 8)));
+    end loop;
+    return frames;
+end function;
+
+constant FRAMES : frame_list_t := make_frames;
+
+-- 受け取ったフレームが、どのポートから送ったものかを返す。どれとも一致しなければ -1 を返す。
+function source_of(buf : byte_array_t; len : natural) return integer is
+begin
+    for n in port_t loop
+        if frame_matches(buf, len, FRAMES(n)) then
+            return n;
+        end if;
+    end loop;
+    return -1;
+end function;
+
+-- 送信側のポートごとに、どのポートから送ったフレームを何回受けたかを数える。
+type count_t is array(port_t) of natural;
+type count_list_t is array(port_t) of count_t;
+
+-- 送り出したポート以外の全てから、フレームが出たかを返す。
+function flooded(got : count_list_t; src : port_t) return boolean is
+begin
+    for n in port_t loop
+        if n /= src and got(n)(src) = 0 then
+            return false;
+        end if;
+    end loop;
+    return true;
+end function;
 
 signal phy_clk      : std_logic := '0';
 signal sys_clk      : std_logic := '0';
-signal rmii_clk     : std_logic := '0';
+signal rmii_clk     : std_logic_vector(RMII_COUNT-1 downto 0) := (others => '0');
 signal pushbutton3  : std_logic := '1';
 
 -- 信号名は FTDI から見た向きで、TXD_UART はホストが送る線、RXD_UART はコアが送る線である。
@@ -116,16 +161,13 @@ signal mdio_clk     : std_logic;
 signal mdio_data    : std_logic;
 signal phy_rst_n    : std_logic;
 
-signal rmii_txd     : std_logic_vector(1 downto 0);
-signal rmii_txen    : std_logic;
-signal rmii_rxd     : std_logic_vector(1 downto 0) := "00";
-signal rmii_crs_dv  : std_logic := '0';
+signal rmii_txd     : std_logic_vector(2*RMII_COUNT-1 downto 0);
+signal rmii_txen    : std_logic_vector(RMII_COUNT-1 downto 0);
+signal rmii_rxd     : std_logic_vector(2*RMII_COUNT-1 downto 0) := (others => '0');
+signal rmii_crs_dv  : std_logic_vector(RMII_COUNT-1 downto 0) := (others => '0');
 
 signal led          : std_logic_vector(7 downto 0);
-
--- 送信側の監視で、送ったフレームと一致したものを数える。
-signal rgmii_tx_ok  : natural := 0;
-signal rmii_tx_ok   : natural := 0;
+signal got          : count_list_t := (others => (others => 0));
 
 signal test_done    : boolean := false;
 
@@ -179,16 +221,19 @@ begin
     wait;
 end process;
 
-p_rmii_clk : process
-begin
-    while not test_done loop
-        rmii_clk <= '0';
-        wait for RMII_CLK_PERIOD / 2;
-        rmii_clk <= '1';
-        wait for RMII_CLK_PERIOD / 2;
-    end loop;
-    wait;
-end process;
+gen_rmii_clk : for n in 0 to RMII_COUNT-1 generate
+    p_rmii_clk : process
+    begin
+        wait for n * RMII_PHASE_STEP;
+        while not test_done loop
+            rmii_clk(n) <= '0';
+            wait for RMII_CLK_PERIOD / 2;
+            rmii_clk(n) <= '1';
+            wait for RMII_CLK_PERIOD / 2;
+        end loop;
+        wait;
+    end process;
+end generate;
 
 p_rgmii_clk : process
 begin
@@ -208,6 +253,7 @@ p_rgmii_mon : process
     variable len    : natural := 0;
     variable low    : std_logic_vector(3 downto 0);
     variable half   : boolean := false;
+    variable src    : integer;
 begin
     wait until rising_edge(rgmii_txclk);
     wait for RGMII_SKEW;
@@ -220,10 +266,11 @@ begin
         end if;
         half := not half;
     elsif len > 0 then
-        assert frame_matches(buf, len, FRAME_FROM_RMII)
-            report "RGMII sent a frame that differs from the one received on RMII" severity error;
-        if frame_matches(buf, len, FRAME_FROM_RMII) then
-            rgmii_tx_ok <= rgmii_tx_ok + 1;
+        src := source_of(buf, len);
+        assert src >= 0
+            report "RGMII sent a frame that matches none of the frames sent in" severity error;
+        if src >= 0 then
+            got(PORT_RGMII)(src) <= got(PORT_RGMII)(src) + 1;
         end if;
         len  := 0;
         half := false;
@@ -232,31 +279,36 @@ end process;
 
 -- LAN8720 と同じく、REF_CLK の立ち上がりで取り込む。
 -- 100 Mbps では 1 周期に 2 ビットを下位から送る。
-p_rmii_mon : process
-    variable buf    : byte_array_t(0 to MAX_BYTES - 1);
-    variable len    : natural := 0;
-    variable byte   : byte_t := (others => '0');
-    variable bits   : natural := 0;
-begin
-    wait until rising_edge(rmii_clk);
-    if rmii_txen = '1' then
-        byte := rmii_txd & byte(7 downto 2);
-        bits := bits + 2;
-        if bits = 8 then
-            buf(len) := byte;
-            len  := len + 1;
+gen_rmii_mon : for n in 0 to RMII_COUNT-1 generate
+    p_rmii_mon : process
+        variable buf    : byte_array_t(0 to MAX_BYTES - 1);
+        variable len    : natural := 0;
+        variable byte   : byte_t := (others => '0');
+        variable bits   : natural := 0;
+        variable src    : integer;
+    begin
+        wait until rising_edge(rmii_clk(n));
+        if rmii_txen(n) = '1' then
+            byte := rmii_txd(2*n+1 downto 2*n) & byte(7 downto 2);
+            bits := bits + 2;
+            if bits = 8 then
+                buf(len) := byte;
+                len  := len + 1;
+                bits := 0;
+            end if;
+        elsif len > 0 then
+            src := source_of(buf, len);
+            assert src >= 0
+                report "RMII " & integer'image(n) & " sent a frame that matches none of the frames sent in"
+                severity error;
+            if src >= 0 then
+                got(n + 1)(src) <= got(n + 1)(src) + 1;
+            end if;
+            len  := 0;
             bits := 0;
         end if;
-    elsif len > 0 then
-        assert frame_matches(buf, len, FRAME_FROM_RGMII)
-            report "RMII sent a frame that differs from the one received on RGMII" severity error;
-        if frame_matches(buf, len, FRAME_FROM_RGMII) then
-            rmii_tx_ok <= rmii_tx_ok + 1;
-        end if;
-        len  := 0;
-        bits := 0;
-    end if;
-end process;
+    end process;
+end generate;
 
 p_test : process
     -- 100 Mbps の RGMII は、TXC の両方のエッジで同じ 4 ビットを送る。
@@ -278,21 +330,32 @@ p_test : process
         rgmii_rxctrl <= '0';
     end procedure;
 
-    procedure send_rmii(frame : byte_array_t) is
+    -- rising_edge は添字が変数の信号を受け取れないため、クロックの束の変化から立ち上がりを探す。
+    procedure wait_rmii_rise(idx : natural) is
+        variable prev : std_logic;
+    begin
+        loop
+            prev := rmii_clk(idx);
+            wait on rmii_clk;
+            exit when prev = '0' and rmii_clk(idx) = '1';
+        end loop;
+    end procedure;
+
+    procedure send_rmii(idx : natural; frame : byte_array_t) is
         constant bytes : byte_array_t := PREAMBLE & frame;
     begin
         for n in bytes'range loop
             for pair in 0 to 3 loop
-                wait until rising_edge(rmii_clk);
+                wait_rmii_rise(idx);
                 wait for RMII_RX_DELAY;
-                rmii_rxd    <= bytes(n)(2*pair + 1 downto 2*pair);
-                rmii_crs_dv <= '1';
+                rmii_rxd(2*idx+1 downto 2*idx) <= bytes(n)(2*pair + 1 downto 2*pair);
+                rmii_crs_dv(idx) <= '1';
             end loop;
         end loop;
-        wait until rising_edge(rmii_clk);
+        wait_rmii_rise(idx);
         wait for RMII_RX_DELAY;
-        rmii_rxd    <= "00";
-        rmii_crs_dv <= '0';
+        rmii_rxd(2*idx+1 downto 2*idx) <= "00";
+        rmii_crs_dv(idx) <= '0';
     end procedure;
 begin
     -- 押しボタンを押した状態から始める。
@@ -307,7 +370,7 @@ begin
         report "reset: UART is not idle" severity error;
     assert rgmii_txctrl = '0'
         report "reset: RGMII is transmitting" severity error;
-    assert rmii_txen = '0'
+    assert rmii_txen = (rmii_txen'range => '0')
         report "reset: RMII is transmitting" severity error;
 
     pushbutton3 <= '1';
@@ -328,17 +391,28 @@ begin
     assert rxd_uart = '0'
         report "bootloader did not send anything within the timeout" severity error;
 
-    -- RMII で受けたフレームを、スイッチが RGMII へ送る。
-    send_rmii(FRAME_FROM_RMII);
-    wait until rgmii_tx_ok = 1 for FRAME_TIMEOUT;
-    assert rgmii_tx_ok = 1
-        report "frame received on RMII was not sent on RGMII" severity error;
+    -- 各ポートからフレームを 1 つずつ送り、送信元以外の全てのポートから 1 回ずつ出ることを確かめる。
+    for src in port_t loop
+        if src = PORT_RGMII then
+            send_rgmii(FRAMES(src));
+        else
+            send_rmii(src - 1, FRAMES(src));
+        end if;
+        wait until flooded(got, src) for FRAME_TIMEOUT;
+        for n in port_t loop
+            if n /= src then
+                assert got(n)(src) = 1
+                    report "frame from port " & integer'image(src) & " was not sent once on port " & integer'image(n)
+                    severity error;
+            end if;
+        end loop;
+    end loop;
 
-    -- RGMII で受けたフレームを、スイッチが RMII へ送る。
-    send_rgmii(FRAME_FROM_RGMII);
-    wait until rmii_tx_ok = 1 for FRAME_TIMEOUT;
-    assert rmii_tx_ok = 1
-        report "frame received on RGMII was not sent on RMII" severity error;
+    -- スイッチは、フレームを送信元のポートへは返さない。
+    for n in port_t loop
+        assert got(n)(n) = 0
+            report "port " & integer'image(n) & " sent a frame back to where it came from" severity error;
+    end loop;
 
     report "All tests finished.";
     test_done <= true;

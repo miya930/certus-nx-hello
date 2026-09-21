@@ -16,15 +16,27 @@ PDC の create_clock も --sdc も内部のクロック網には届かず、制�
 from __future__ import annotations
 
 import json
+import re
 import sys
 
 # クロックの名前と、そのクロックに必要な周波数 (MHz)。
 REQUIRED_MHZ = {
     "rx_data[0]$glb_clk": 125.0,    # RGMII の受信
     "tx_ctrl[0]$glb_clk": 125.0,    # RGMII の送信
-    "rx_data[125]$glb_clk": 50.0,   # RMII の送受信
     "cfg_cmd[0]$glb_clk": 25.0,     # スイッチコア、ConfigBus、CPU
 }
+
+# RMII のポートは送受信に同じクロックを使い、rx_data[125]、rx_data[250] のようにポートごとに名前が付く。
+RMII_CLOCK = re.compile(r"rx_data\[[1-9][0-9]*\]\$glb_clk")
+RMII_MHZ = 50.0
+
+
+def required(clock: str) -> float | None:
+    if clock in REQUIRED_MHZ:
+        return REQUIRED_MHZ[clock]
+    if RMII_CLOCK.fullmatch(clock):
+        return RMII_MHZ
+    return None
 
 
 def main() -> None:
@@ -36,7 +48,7 @@ def main() -> None:
 
     for clock, result in sorted(fmax.items()):
         achieved = result["achieved"]
-        need = REQUIRED_MHZ.get(clock)
+        need = required(clock)
         if need is None:
             unknown.append(clock)
         elif achieved < need:

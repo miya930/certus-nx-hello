@@ -23,11 +23,11 @@ entity managed_switch is
     rgmii_mdio_clk  : out std_logic;
     rgmii_mdio_data : out std_logic;
     rgmii_rst_n     : out std_logic;
-    rmii_ref_clk    : in  std_logic;
-    rmii_txd        : out std_logic_vector(1 downto 0);
-    rmii_txen       : out std_logic;
-    rmii_rxd        : in  std_logic_vector(1 downto 0);
-    rmii_crs_dv     : in  std_logic;
+    rmii_ref_clk    : in  std_logic_vector(1 downto 0);
+    rmii_txd        : out std_logic_vector(3 downto 0);
+    rmii_txen       : out std_logic_vector(1 downto 0);
+    rmii_rxd        : in  std_logic_vector(3 downto 0);
+    rmii_crs_dv     : in  std_logic_vector(1 downto 0);
     clk_customer2   : in  std_logic;
     system_25m_clk  : in  std_logic;
     pushbutton3     : in  std_logic;
@@ -70,7 +70,7 @@ constant RGMIICTL_VALUE : natural := 16#00D3#;
 constant REG_RGMIIDCTL   : natural := 16#0086#;
 constant RGMIIDCTL_VALUE : natural := 16#0077#;
 
--- LAN8720 のモジュールは 50 MHz の発振器を持ち、LAN8720 と FPGA が同じ REF_CLK を受ける。
+-- LAN8720 のモジュールはそれぞれ 50 MHz の発振器を持ち、LAN8720 と FPGA が同じ REF_CLK を受ける。
 -- LAN8720 の受信データは、REF_CLK の立ち上がりの TOHOLD 後から TOVAL 後まで変化する。
 -- FPGA の入力レジスタのホールド時間 TH は TOHOLD より長いため、入力遅延 d を入れて立ち上がりで取り込む。
 -- ホールドには TH - d <= TOHOLD、セットアップには TOVAL + TSU + d <= 周期が必要で、d をその中央に置く。
@@ -89,11 +89,13 @@ constant RMII_RXDAT_DELAY_NSEC  : real :=
 constant DEV_SWITCH     : integer := 0;
 constant DEV_MAILMAP    : integer := 1;
 
--- スイッチのポートは、DP83867 につながる RGMII、LAN8720 につながる RMII、CPU につながる mailmap の 3 つである。
-constant PORT_TOTAL     : positive := 3;
+-- スイッチのポートは、DP83867 につながる RGMII、LAN8720 につながる RMII、CPU につながる mailmap の順に並べる。
+-- RMII のポートの数は、PMOD に出した REF_CLK の数で決まる。
+constant RMII_COUNT     : positive := rmii_ref_clk'length;
 constant PORT_RGMII     : natural := 0;
 constant PORT_RMII      : natural := 1;
-constant PORT_CPU       : natural := 2;
+constant PORT_CPU       : natural := PORT_RMII + RMII_COUNT;
+constant PORT_TOTAL     : positive := PORT_CPU + 1;
 
 -- 最初の書き込みまでの待ちは、起動の待ちで足りているため 0 ms にする。
 function mdio_write(reg, value : natural) return std_logic_vector is
@@ -211,25 +213,27 @@ u_rgmii : entity work.port_rgmii
 -- FPGA の出力の遅れを足しても、次の立ち上がりまでに LAN8720 のセットアップ時間が残る。
 -- RXER は使わず、受信の誤りはスイッチコアが FCS で見つける。
 -- REF_CLK が止まったことを検出するため、別のクロックとして SYSTEM_25M_CLK を使う。
-u_rmii : entity work.port_rmii
-    generic map(
-    MODE_CLKOUT => false,
-    MODE_CLKDDR => false,
-    RXDAT_DELAY => RMII_RXDAT_DELAY_NSEC)
-    port map(
-    rmii_txd    => rmii_txd,
-    rmii_txen   => rmii_txen,
-    rmii_txer   => open,
-    rmii_rxd    => rmii_rxd,
-    rmii_rxen   => rmii_crs_dv,
-    rmii_rxer   => '0',
-    rmii_clkin  => rmii_ref_clk,
-    rmii_clkout => open,
-    rx_data     => rx_data(PORT_RMII),
-    tx_data     => tx_data(PORT_RMII),
-    tx_ctrl     => tx_ctrl(PORT_RMII),
-    lock_refclk => system_25m_clk,
-    reset_p     => reset_p);
+gen_rmii : for n in 0 to RMII_COUNT-1 generate
+    u_rmii : entity work.port_rmii
+        generic map(
+        MODE_CLKOUT => false,
+        MODE_CLKDDR => false,
+        RXDAT_DELAY => RMII_RXDAT_DELAY_NSEC)
+        port map(
+        rmii_txd    => rmii_txd(2*n+1 downto 2*n),
+        rmii_txen   => rmii_txen(n),
+        rmii_txer   => open,
+        rmii_rxd    => rmii_rxd(2*n+1 downto 2*n),
+        rmii_rxen   => rmii_crs_dv(n),
+        rmii_rxer   => '0',
+        rmii_clkin  => rmii_ref_clk(n),
+        rmii_clkout => open,
+        rx_data     => rx_data(PORT_RMII + n),
+        tx_data     => tx_data(PORT_RMII + n),
+        tx_ctrl     => tx_ctrl(PORT_RMII + n),
+        lock_refclk => system_25m_clk,
+        reset_p     => reset_p);
+end generate;
 
 -- ConfigBus のコマンドは全デバイスに配り、応答はまとめて CPU へ返す。
 cfg_ack <= cfgbus_merge(ack_switch, ack_mailmap);

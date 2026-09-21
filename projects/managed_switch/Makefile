@@ -48,8 +48,12 @@ $(BUILD)/managed_switch.json: $(VHDL) Makefile
 # --freq は設計全体に 1 つの目標しか与えられず、PDC の create_clock も --sdc も内部のクロック網に届かない。
 # この設計は RGMII の 125 MHz、RMII の 50 MHz、スイッチコアと CPU の 25 MHz を持つため、目標を一番高い 125 MHz に合わせる。
 # 遅いクロックの回路まで 125 MHz で評価されるので失敗を許し、クロックごとの要求は check_timing.py で確かめる。
+# RGMII の送信側は 125 MHz に対する余裕が小さく、既定のシードでは配置によって届かない。
+# 1 から 6 のシードを試し、RGMII の送信側の余裕が一番大きかったものを使う。
+SEED := 2
+
 $(BUILD)/managed_switch.fasm: $(BUILD)/managed_switch.json hdl/managed_switch.pdc tools/check_timing.py
-	nextpnr-nexus --device $(DEVICE) --pdc hdl/managed_switch.pdc --freq 125 --timing-allow-fail --json $< \
+	nextpnr-nexus --device $(DEVICE) --pdc hdl/managed_switch.pdc --freq 125 --timing-allow-fail --seed $(SEED) --json $< \
 		--fasm $@ --report $(BUILD)/report.json -l $(BUILD)/nextpnr.log -q
 	python3 tools/check_timing.py $(BUILD)/report.json
 
