@@ -5,7 +5,10 @@ edition = "2021"
 
 [dependencies]
 riscv-rt = { version = "0.18", features = ["single-hart"] }
-panic-halt = "1.0"
+# defmt-rtt は割り込みを止めて RTT のバッファを書くため、単一ハートの critical-section の実装を使う。
+riscv = { version = "0.16", features = ["critical-section-single-hart"] }
+defmt = "1"
+defmt-rtt = "1"
 
 # 命令メモリは 16 KB で、最適化しないとファームウェアが入りきらないため、開発用のビルドでも大きさを詰める。
 [profile.dev]
