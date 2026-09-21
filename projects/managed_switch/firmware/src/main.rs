@@ -3,11 +3,13 @@
 
 mod console;
 mod dp83867;
+mod leds;
 mod memory_map;
 mod mt25q;
 mod ports;
 mod satcat5;
 mod settings;
+mod ticker;
 mod traffic;
 
 use neorv32_hal::{gpio::Gpio, mtime::Mtime, pac, spi::Spi, uart::Uart};
@@ -18,10 +20,12 @@ use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
 
 use console::{commands::State, Console, Style};
 use dp83867::Dp83867;
+use leds::Leds;
 use memory_map::{MAILMAP, MDIO, SWITCH_CORE};
 use mt25q::Mt25q;
 use satcat5::mailmap::MailMap;
 use settings::Settings;
+use ticker::Ticker;
 use traffic::Traffic;
 
 /// コアは、ボードの 25 MHz の SYSTEM_25M_CLK で動く。
@@ -38,12 +42,6 @@ const DP83867_PHY_ADDR: u32 = 0;
 
 /// GPIO の入力の最下位は、PHY のリセットの解除から MDIO を使えるまでの待ちが終わったことを示す。
 const GPIO_IN_PHY_READY: u32 = 1 << 0;
-
-// LED は、最下位に DP83867 のリンクを、最上位に動作を示す点滅を出し、残りに受け取ったフレームの数を出す。
-const LED_LINK: u32 = 1 << 0;
-const LED_HEARTBEAT: u32 = 1 << 7;
-const LED_RX_SHIFT: u32 = 1;
-const LED_RX_MASK: u32 = 0x3F;
 
 /// リンクは MDIO で読むため、読む間隔をあけて通信の処理を妨げないようにする。
 const LINK_POLL_MSEC: u64 = 500;
@@ -81,7 +79,7 @@ fn main() -> ! {
     out.puts(" Type \"help\" for the commands.\n");
 
     let mtime = Mtime::new(peripherals.clint, CLK_HZ);
-    let mut gpio = Gpio::new(peripherals.gpio);
+    let gpio = Gpio::new(peripherals.gpio);
     let mut flash = Mt25q::new(Spi::new(peripherals.spi, CLK_HZ, FLASH_SCK_HZ, FLASH_CS));
     let phy = Dp83867::new(MDIO, DP83867_PHY_ADDR);
 
@@ -114,8 +112,8 @@ fn main() -> ! {
 
     console.prompt();
 
-    let mut leds = 0;
-    let mut next_poll = 0;
+    let mut leds = Leds::new(gpio);
+    let mut link_poll = Ticker::new(mtime, LINK_POLL_MSEC);
 
     loop {
         iface.poll(now(&mtime), &mut device, &mut sockets);
@@ -126,20 +124,12 @@ fn main() -> ! {
             apply(&applied, &mut iface);
         }
 
-        if state.traffic.due() {
-            state.traffic.sample();
-        }
+        state.traffic.poll();
 
-        let millis = mtime.millis();
-        if millis >= next_poll {
-            next_poll = millis + LINK_POLL_MSEC;
-            leds ^= LED_HEARTBEAT;
-            leds &= !LED_LINK;
-            if phy.status().link {
-                leds |= LED_LINK;
-            }
+        if link_poll.due() {
+            leds.toggle_heartbeat();
+            leds.set_link(phy.status().link);
         }
-        let rx = (device.rx_count & LED_RX_MASK) << LED_RX_SHIFT;
-        gpio.write(leds | rx);
+        leds.show_rx_count(device.rx_count);
     }
 }

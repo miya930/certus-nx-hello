@@ -266,6 +266,8 @@ ARP と ICMP の echo には smoltcp が応答するため、ソケットは開�
 | `ports.rs` | スイッチのポートの番号と名前 |
 | `settings.rs` | 設定と、Flash に保存する書式 |
 | `traffic.rs` | ポートごとの送受信の速さと累計 |
+| `ticker.rs` | リンクの読み取りや統計の取り込みを、一定の周期で行うための時計 |
+| `leds.rs` | ボードの汎用 LED への表示 |
 | `console/` | コンソールの端末の入出力、文字の色、行の編集、コマンド |
 | `satcat5/` | SatCat5 の ConfigBus のデバイス |
 | `dp83867/` | ボードの Ethernet PHY の DP83867 |
