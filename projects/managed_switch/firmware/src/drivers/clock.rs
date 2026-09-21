@@ -30,7 +30,7 @@ impl DelayNs for Clock {
     }
 }
 
-/// 主ループから毎回 due を問い合わせ、周期が来たときだけ処理を行う。
+/// メインループから毎回 due を問い合わせ、周期が来たときだけ処理を行う。
 pub struct Ticker {
     clock: Clock,
     period_msec: u64,
@@ -40,7 +40,7 @@ pub struct Ticker {
 impl Ticker {
     /// 周期が来ていれば真を返し、次の時刻を今から 1 周期後にする。
     /// 作った直後の due は真になり、最初の処理をすぐに行う。
-    /// 主ループが遅れたときは、遅れた分を取り戻さずに次の周期を数え始める。
+    /// メインループが遅れたときは、遅れた分を取り戻さずに次の周期を数え始める。
     pub fn due(&mut self) -> bool {
         let now = self.clock.millis();
         if now < self.next_msec {
