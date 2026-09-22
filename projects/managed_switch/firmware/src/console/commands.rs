@@ -52,7 +52,7 @@ impl<'a> Commands<'a> {
         Commands { config, traffic, out, phy, clock }
     }
 
-    /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映は主ループが行う。
+    /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映はメインループが行う。
     pub fn execute(&mut self, line: &str) {
         let mut words = line.split_ascii_whitespace();
         let Some(command) = words.next() else {

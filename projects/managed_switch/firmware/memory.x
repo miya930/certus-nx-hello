@@ -12,7 +12,7 @@ REGION_ALIAS("REGION_BSS",    DMEM);
 REGION_ALIAS("REGION_HEAP",   DMEM);
 REGION_ALIAS("REGION_STACK",  DMEM);
 
-/* パニックでは止まるだけで巻き戻さないため、巻き戻しの表は捨てて命令メモリを空ける。 */
+/* パニックでは止まるだけでスタックを巻き戻さないため、unwind table は捨てて命令メモリを空ける。 */
 SECTIONS
 {
   /DISCARD/ : { *(.eh_frame) *(.eh_frame_hdr) }

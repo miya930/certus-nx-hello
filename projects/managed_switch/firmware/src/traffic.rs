@@ -43,7 +43,7 @@ impl Traffic {
         }
     }
 
-    /// 前回の取り込みからの数を読み、累計に足す。主ループから SAMPLE_MSEC ごとに呼ぶ。
+    /// 前回の取り込みからの数を読み、累計に足す。メインループから SAMPLE_MSEC ごとに呼ぶ。
     pub fn sample(&mut self) {
         let now = self.clock.millis();
         SWITCH.refresh_stats(&mut self.clock);

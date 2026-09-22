@@ -18,7 +18,7 @@ impl Links {
         Links { phy, dp83867_up: false, rmii_locked: false }
     }
 
-    /// リンクは MDIO で読むため、主ループから間隔をあけて呼ぶ。
+    /// リンクは MDIO で読むため、メインループから間隔をあけて呼ぶ。
     pub fn check(&mut self) {
         let status = self.phy.status();
         if status.link != self.dp83867_up {
@@ -33,7 +33,7 @@ impl Links {
                 defmt::info!("DP83867 link down");
             }
             // スイッチコアは、学習した MAC アドレスが別のポートから届いても、表の項目を書き換えない。
-            // 機器を差し替えたときに元のポートへ送り続けないよう、表を消して学び直させる。
+            // 機器を差し替えたときに元のポートへ送り続けないよう、表を消して再学習させる。
             // ポートは 2 つなので、どちらの向きに差し替えても DP83867 のリンクが変わる。
             SWITCH.mac_clear();
             defmt::info!("Cleared the MAC address table");

@@ -13,7 +13,7 @@ Usage:
         third_party/neorv32_probe_rs/neorv32_bootrom_image.vhd
 
 NEORV32 の neorv32_bootrom は、パッケージ neorv32_bootrom_image の image_size_c と image_data_c を読む。
-ROM のアドレスの幅は image_size_c から決まるため、配列はその幅で指せる語の数だけ取る。
+ROM のアドレスの幅は image_size_c から決まるため、配列はその幅で指せるワードの数だけ取る。
 """
 
 from __future__ import annotations

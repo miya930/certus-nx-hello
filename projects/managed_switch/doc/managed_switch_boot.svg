@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 790" width="900" height="790" font-family="'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', Meiryo, sans-serif" font-size="13" fill="#222">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#444"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="790" fill="#ffffff"/>
+
+  <!-- 始まり -->
+  <rect x="130" y="20" width="340" height="40" rx="20" fill="#f3f3f3" stroke="#555" stroke-width="1.2"/>
+  <text x="300" y="45" text-anchor="middle">電源投入か、FPGA のコンフィグのやり直し</text>
+  <rect x="580" y="185" width="280" height="40" rx="20" fill="#f3f3f3" stroke="#555" stroke-width="1.2"/>
+  <text x="720" y="210" text-anchor="middle" font-size="12">JTAG で書いたあとのコアのリセット</text>
+
+  <!-- 処理 -->
+  <g stroke="#555" stroke-width="1.2" fill="#ffffff">
+    <rect x="130" y="85" width="340" height="75"/>
+    <rect x="130" y="185" width="340" height="40"/>
+    <rect x="130" y="410" width="340" height="40"/>
+    <rect x="130" y="645" width="340" height="55"/>
+    <rect x="130" y="725" width="340" height="40"/>
+  </g>
+  <rect x="130" y="555" width="340" height="60" fill="#dff0e3" stroke="#2e7d32" stroke-width="2"/>
+  <g text-anchor="middle">
+    <text x="300" y="109">FPGA が SPI Flash の先頭から</text>
+    <text x="300" y="127">ビットストリームを読んでコンフィグする</text>
+    <text x="300" y="149" font-size="11" fill="#555">命令メモリは初期値を持たず、0 で埋まる</text>
+    <text x="300" y="210">NEORV32 が起動 ROM から動き始める</text>
+    <text x="300" y="435">Flash の firmware image の先頭 8 バイトを読む</text>
+    <text x="300" y="580" font-weight="bold">firmware image を命令メモリにコピーする</text>
+    <text x="300" y="601" font-size="11" fill="#333">SPI で読み、約 36 KB で約 3 秒かかる</text>
+    <text x="300" y="668">命令メモリの先頭が 0 の間は待つ</text>
+    <text x="300" y="688" font-size="11" fill="#555">JTAG から書き込まれると先へ進む</text>
+    <text x="300" y="750">命令メモリの先頭へ飛び、ファームウェアが動く</text>
+  </g>
+
+  <!-- 判断 -->
+  <g stroke="#4a6fa5" stroke-width="1.2" fill="#eef4fb">
+    <polygon points="130,275 150,250 450,250 470,275 450,300 150,300"/>
+    <polygon points="130,355 150,330 450,330 470,355 450,380 150,380"/>
+    <polygon points="130,500 150,475 450,475 470,500 450,525 150,525"/>
+  </g>
+  <g text-anchor="middle">
+    <text x="300" y="280">命令メモリの先頭は 0 か</text>
+    <text x="300" y="352">設計に SPI があるか</text>
+    <text x="300" y="370" font-size="11" fill="#555">SYSINFO で確かめる</text>
+    <text x="300" y="496">先頭が "IMEM" で、長さが 0 でなく</text>
+    <text x="300" y="514">命令メモリに収まるか</text>
+  </g>
+
+  <!-- 上から下への流れ -->
+  <g stroke="#444" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="300" y1="60" x2="300" y2="83"/>
+    <line x1="300" y1="160" x2="300" y2="183"/>
+    <line x1="300" y1="225" x2="300" y2="248"/>
+    <line x1="300" y1="300" x2="300" y2="328"/>
+    <line x1="300" y1="380" x2="300" y2="408"/>
+    <line x1="300" y1="450" x2="300" y2="473"/>
+    <line x1="300" y1="525" x2="300" y2="553"/>
+    <line x1="300" y1="615" x2="300" y2="643"/>
+    <line x1="300" y1="700" x2="300" y2="723"/>
+    <line x1="580" y1="205" x2="472" y2="205"/>
+  </g>
+  <g font-size="11" fill="#555">
+    <text x="308" y="318">はい</text>
+    <text x="308" y="398">はい</text>
+    <text x="308" y="543">はい</text>
+  </g>
+
+  <!-- 「いいえ」は、待つ処理へまとめて進む -->
+  <g stroke="#444" stroke-width="1.5" fill="none">
+    <line x1="470" y1="275" x2="560" y2="275"/>
+    <line x1="470" y1="355" x2="560" y2="355"/>
+    <line x1="470" y1="500" x2="560" y2="500"/>
+    <path d="M560,275 V672 H472" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#444">
+    <circle cx="560" cy="355" r="3"/>
+    <circle cx="560" cy="500" r="3"/>
+  </g>
+  <g font-size="11" fill="#555" text-anchor="middle">
+    <text x="515" y="268">いいえ</text>
+    <text x="515" y="348">いいえ</text>
+    <text x="515" y="493">いいえ</text>
+  </g>
+</svg>

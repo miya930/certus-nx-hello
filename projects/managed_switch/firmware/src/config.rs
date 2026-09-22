@@ -1,5 +1,5 @@
 //! 動作中の設定と、SPI Flash に保存した設定。
-//! コンソールのコマンドは動作中の設定を書き換え、主ループが apply でスイッチに反映する。
+//! コンソールのコマンドは動作中の設定を書き換え、メインループが apply でスイッチに反映する。
 
 use crate::host::Host;
 use crate::memory_map::SWITCH;
