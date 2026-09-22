@@ -36,6 +36,10 @@ VHDL := $(CORE_VHDL) \
 
 all: $(BUILD)/managed_switch.bit
 
+# check_timing.py が失敗しても nextpnr-nexus が書いた .fasm が残ると、次の make は検査をせずに .bit を作る。
+# そのため、レシピが失敗したら、そのレシピが作るファイルを消す。
+.DELETE_ON_ERROR:
+
 build/patched/%: $(SATCAT5)/common/% $(PATCHES)/%.patch
 	mkdir -p $(dir $@)
 	patch -s -o $@ $< $(PATCHES)/$*.patch

@@ -1,5 +1,7 @@
 //! コンソールのコマンドを解釈して実行する。
 
+use core::net::Ipv4Addr;
+
 use crate::config::Config;
 use crate::drivers::clock::Clock;
 use crate::drivers::dp83867::Dp83867;
@@ -596,10 +598,15 @@ impl<'a> Commands<'a> {
         parts.next().is_none().then_some(ip)
     }
 
+    /// スイッチ自身のアドレスには、ユニキャストのアドレスだけを受け付ける。
+    /// smoltcp はマルチキャストとブロードキャストのアドレスを渡すとパニックし、0.0.0.0 では ARP にも ping にも応答しない。
     fn parse_cidr(text: &str) -> Option<([u8; 4], u8)> {
         let (ip, prefix) = text.split_once('/')?;
         let prefix: u8 = prefix.parse().ok()?;
-        (prefix <= 32).then_some((Self::parse_ipv4(ip)?, prefix))
+        let ip = Self::parse_ipv4(ip)?;
+        let address = Ipv4Addr::from(ip);
+        let unicast = !(address.is_multicast() || address.is_broadcast() || address.is_unspecified());
+        (prefix <= 32 && unicast).then_some((ip, prefix))
     }
 
     /// マルチキャストの MAC は送信元に使えないため、最初のバイトの最下位ビットが 1 のものは受け付けない。
