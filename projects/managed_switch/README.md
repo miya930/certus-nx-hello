@@ -21,7 +21,8 @@ CPU は、ConfigBus を通して、スイッチコア、ポートごとの統計
 ファームウェアは、PMOD の J5 に出した JTAG から probe-rs で書き込む。
 
 HDL と制約は `hdl/`、ファームウェアは `firmware/`、ビルドで使うスクリプトは `tools/`、図は `doc/` に置く。
-probe-rs に渡すメモリの配置は `neorv32.yaml` に置く。
+probe-rs に渡すメモリの配置は、`neorv32.yaml` の `variants` のうち、`managed_switch` の項目に置く。
+`neorv32.yaml` は、`third_party/neorv32_probe_rs/neorv32.yaml` へのシンボリックリンクである。
 
 ### メモリマップ
 

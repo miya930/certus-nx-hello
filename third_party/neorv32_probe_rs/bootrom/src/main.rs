@@ -10,7 +10,7 @@ use mt25q::Mt25q;
 use neorv32_hal::{pac, spi::Spi};
 
 /// firmware image を置く SPI Flash の位置。ビットストリームと設定のあいだにある。
-/// tools/firmware_flash と、各プロジェクトの neorv32.yaml の Flash の範囲に合わせる。
+/// tools/firmware_flash と、third_party/neorv32_probe_rs/neorv32.yaml の FLASH の範囲に合わせる。
 const IMAGE_OFFSET: u32 = 0x00F0_0000;
 /// firmware image の先頭は、この 4 文字と、続く中身のバイト数の 4 バイトである。
 const IMAGE_MAGIC: [u8; 4] = *b"IMEM";

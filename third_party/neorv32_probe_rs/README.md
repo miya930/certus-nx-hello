@@ -30,9 +30,20 @@ uv run tools/bootrom_image/bootrom_image.py \
     third_party/neorv32_probe_rs/neorv32_bootrom_image.vhd
 ```
 
+## チップの定義
+
+`neorv32.yaml` は、probe-rs に NEORV32 のメモリの位置と Flash の書き込みプログラムを教えるチップの定義である。
+全てのプロジェクトが、シンボリックリンクでこの 1 つのファイルを参照する。
+メモリの大きさはプロジェクトごとに違うため、`variants` にプロジェクトごとの項目を 1 つずつ置き、名前はプロジェクトの名前にする。
+Flash の書き込みプログラムは、ファイルの末尾に 1 つだけ置き、`variants` の項目から名前で参照する。
+
 ## プロジェクトの側で必要なこと
 
 起動 ROM を使うため、`BOOT_MODE_SELECT` は 0 にする。
+
+`neorv32.yaml` の `variants` に、プロジェクトの名前の項目を足す。
+プロジェクトのフォルダには、このファイルへのシンボリックリンクを `neorv32.yaml` の名前で置く。
+`firmware/.cargo/config.toml` では、`PROBE_RS_CHIP_DESCRIPTION_PATH` でシンボリックリンクを指し、`PROBE_RS_CHIP` でプロジェクトの名前を選ぶ。
 
 probe-rs は、IDCODE の製造元の欄が 0 だと無効な IDCODE として接続しない。
 NEORV32 は自身の JEDEC ID を持たないため、`OCD_JEDEC_ID` にコアが載る FPGA の製造元である Lattice の ID を入れる。

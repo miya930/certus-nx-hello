@@ -16,7 +16,9 @@ NEORV32 の JTAG は PMOD の J5 に出し、probe-rs からファームウェ�
 
 トップは `riscv_rust.vhd`、ピン割り当ては `riscv_rust.pdc` に置く。
 起動 ROM は、`third_party/neorv32_probe_rs` のものを使う。
-probe-rs に渡すメモリの配置は `neorv32.yaml`、ファームウェアは `firmware/` に置く。
+ファームウェアは `firmware/` に置く。
+probe-rs に渡すメモリの配置は、`neorv32.yaml` の `variants` のうち、`riscv_rust` の項目に置く。
+`neorv32.yaml` は、`third_party/neorv32_probe_rs/neorv32.yaml` へのシンボリックリンクである。
 
 ### メモリマップ
 
