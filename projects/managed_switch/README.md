@@ -21,7 +21,7 @@ CPU は、ConfigBus を通して、スイッチコア、ポートごとの統計
 ファームウェアは、PMOD の J5 に出した JTAG から probe-rs で書き込む。
 
 HDL と制約は `hdl/`、ファームウェアは `firmware/`、ビルドで使うスクリプトは `tools/`、図は `doc/` に置く。
-probe-rs に渡すメモリの配置は `neorv32.yaml` に置く。
+probe-rs に渡すメモリの配置は、`third_party/neorv32_probe_rs/neorv32.yaml` の `variants` のうち、`managed_switch` の項目に置く。
 
 ### メモリマップ
 
@@ -71,7 +71,7 @@ FPGA の外とは、I/O のピンでつながる。
 `0x90000000` からの 4 つは、ConfigBus のデバイスである。
 表にないアドレスは、全て外部バスを通って ConfigBus に届く。
 ConfigBus へのブリッジはアドレスの下位 20 ビットしか見ないため、ファームウェアは `0x90000000` からの範囲だけを使う。
-命令メモリとデータメモリの位置と大きさは、`hdl/managed_switch.vhd` の generic、`firmware/memory.x`、`neorv32.yaml` で合わせる。
+命令メモリとデータメモリの位置と大きさは、`hdl/managed_switch.vhd` の generic、`firmware/memory.x`、`third_party/neorv32_probe_rs/neorv32.yaml` で合わせる。
 
 #### ConfigBus のレジスタ
 

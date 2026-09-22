@@ -1,10 +1,10 @@
-# probe-rs に、このコアのメモリの位置を教える。
-# 位置と大きさは hdl/managed_switch.vhd の generic と firmware/memory.x に合わせる。
+# probe-rs に、各プロジェクトのコアのメモリの位置を教える。
 # 命令メモリは RAM で、JTAG から書き込んだあとリセットすると、起動 ROM が先頭へ飛ぶ。
 # FLASH は SPI Flash のうち、firmware image を置く範囲である。
 # 書き込みプログラムは flash_algorithms/mt25q から target-gen elf で作った。
 name: NEORV32
 variants:
+# 位置と大きさは projects/managed_switch の hdl/managed_switch.vhd の generic と firmware/memory.x に合わせる。
 - name: managed_switch
   cores:
   - name: main
@@ -36,6 +36,29 @@ variants:
     - main
   flash_algorithms:
   - mt25q
+# 位置と大きさは projects/riscv_rust の riscv_rust.vhd の generic と firmware/memory.x に合わせる。
+- name: riscv_rust
+  cores:
+  - name: main
+    type: riscv
+    core_access_options: !Riscv
+  memory_map:
+  - !Ram
+    name: IMEM
+    range:
+      start: 0x00000000
+      end: 0x00004000
+    cores:
+    - main
+    access:
+      boot: true
+  - !Ram
+    name: DMEM
+    range:
+      start: 0x80000000
+      end: 0x80002000
+    cores:
+    - main
 flash_algorithms:
 - name: mt25q
   description: MT25QU128

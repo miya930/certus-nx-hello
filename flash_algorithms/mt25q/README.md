@@ -8,7 +8,7 @@ probe-rs は Flash をアドレスで扱うため、SPI Flash のアドレス 0 
 probe-rs に見せるのは、firmware image を置く `0x20F00000` からの 128 KB だけにする。
 ビットストリームと保存した設定を、probe-rs が消さないようにするためである。
 
-プログラムを変えたときは、次のように作り直し、出力の `flash_algorithms` の項目を各プロジェクトの `neorv32.yaml` にコピーする。
+プログラムを変えたときは、次のように作り直し、出力の `flash_algorithms` の項目を `third_party/neorv32_probe_rs/neorv32.yaml` にコピーする。
 `target-gen elf --update` は、既存の YAML のコメントとデータメモリの範囲を落とすため使わない。
 target-gen は、probe-rs と同じ版のものを使う。
 
