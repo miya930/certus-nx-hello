@@ -3,13 +3,7 @@
     "language": "en",
     // 外部の HDL、データシート、ビルド生成物、図は、このリポジトリで書く文ではないため調べない。
     // 図の SVG は、フォント名や描画の属性を多く持つ。
-    "ignorePaths": [
-        "third_party/**",
-        "datasheets/**",
-        "**/build/**",
-        "**/*.lock",
-        "**/*.svg"
-    ],
+    "ignorePaths": ["third_party/**", "datasheets/**", "**/build/**", "**/*.lock", "**/*.svg"],
     // リンカに渡す -Tmemory.x のような指定は、単語ではない。
     "ignoreRegExpList": ["/-T[\\w.]+\\.x/g"],
     // チップ、信号、レジスタ、ツールの名前など、データシートやツールにあって英語の辞書にない語。
@@ -47,7 +41,9 @@
         "elab",
         "elffile",
         "elftools",
+        "emeraldwalk",
         "errvec",
+        "esac",
         "ethertype",
         "fasm",
         "filesz",
@@ -106,6 +102,7 @@
         "rmii",
         "rodata",
         "rstn",
+        "runonsave",
         "rustflags",
         "rustup",
         "rxclk",
@@ -121,8 +118,10 @@
         "smoltcp",
         "srodata",
         "subsector",
+        "syntastic",
         "sysinfo",
         "tohold",
+        "toplevel",
         "toval",
         "trst",
         "txclk",

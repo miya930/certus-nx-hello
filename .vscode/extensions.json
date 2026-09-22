@@ -1,0 +1,4 @@
+{
+    // 保存したファイルを整形するために使う。
+    "recommendations": ["rust-lang.rust-analyzer", "emeraldwalk.RunOnSave"]
+}
