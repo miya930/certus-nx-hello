@@ -11,7 +11,7 @@ use crate::traffic::Traffic;
 use commands::Commands;
 use line_editor::LineEditor;
 
-/// PHY と時計は、`status` のリンクと `info` の稼働時間を読むためだけに持つ。
+/// PHY は `status` と `stats clear` で、時計は `info` の稼働時間で使う。
 pub struct Console {
     editor: LineEditor,
     terminal: Terminal,

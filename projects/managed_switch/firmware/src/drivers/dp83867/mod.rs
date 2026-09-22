@@ -26,6 +26,20 @@ pub struct Status {
     pub link: bool,
     pub speed_mbps: u32,
     pub full_duplex: bool,
+    /// 1000BASE-T でなければ、使うのは A と B の対だけなので、その対の結果を返す。
+    pub mdi_x: bool,
+}
+
+/// 相手が自動交渉で広告した能力。
+pub struct Partner {
+    pub full_1000: bool,
+    pub half_1000: bool,
+    pub full_100: bool,
+    pub half_100: bool,
+    pub full_10: bool,
+    pub half_10: bool,
+    pub pause: bool,
+    pub asymmetric_pause: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -37,6 +51,10 @@ pub struct Dp83867 {
 impl Dp83867 {
     pub const fn new(mdio: Mdio, phy_addr: u8) -> Self {
         Dp83867 { mdio, phy_addr }
+    }
+
+    fn read(&self, register: u8) -> u16 {
+        self.mdio.read(self.phy_addr, register)
     }
 
     fn write(&self, register: u8, value: u16) {
@@ -57,15 +75,48 @@ impl Dp83867 {
         self.write_extended(RGMIIDCTL, RGMIIDCTL_VALUE);
         self.write(CFG1, CFG1_VALUE);
         self.write(BMCR, BMCR_VALUE);
+        // コアだけをリセットしたときも、ポートの統計と同じく起動から数える。
+        self.clear_receive_errors();
     }
 
     pub fn status(&self) -> Status {
-        let physts = self.mdio.read(self.phy_addr, PHYSTS);
+        let physts = self.read(PHYSTS);
         let speed = (physts >> PHYSTS_SPEED_SHIFT) as usize;
         Status {
             link: physts & PHYSTS_LINK != 0,
             speed_mbps: SPEEDS_MBPS.get(speed).copied().unwrap_or(0),
             full_duplex: physts & PHYSTS_DUPLEX != 0,
+            mdi_x: physts & PHYSTS_MDI_X_MODE_AB != 0,
         }
+    }
+
+    /// 相手が自動交渉に対応しなければ None を返す。
+    pub fn partner(&self) -> Option<Partner> {
+        if self.read(ANER) & ANER_LP_AN_ABLE == 0 {
+            return None;
+        }
+        let anlpar = self.read(ANLPAR);
+        // CFG1 で 1000BASE-T を広告していなくても、STS1 は相手の 1000BASE-T の能力を返すことを実機で確かめた。
+        let sts1 = self.read(STS1);
+        Some(Partner {
+            full_1000: sts1 & STS1_1000BASE_T_FD != 0,
+            half_1000: sts1 & STS1_1000BASE_T_HD != 0,
+            full_100: anlpar & ANLPAR_TX_FD != 0,
+            half_100: anlpar & ANLPAR_TX != 0,
+            full_10: anlpar & ANLPAR_10_FD != 0,
+            half_10: anlpar & ANLPAR_10 != 0,
+            pause: anlpar & ANLPAR_PAUSE != 0,
+            asymmetric_pause: anlpar & ANLPAR_ASM_DIR != 0,
+        })
+    }
+
+    /// PHY が受信で RX_ER を出した回数。65535 で止まる。
+    pub fn receive_errors(&self) -> u16 {
+        self.read(RECR)
+    }
+
+    /// RECR は、何を書いても 0 に戻る。
+    pub fn clear_receive_errors(&self) {
+        self.write(RECR, 0);
     }
 }
