@@ -13,7 +13,7 @@ constant STEP_MSEC      : positive := 1;
 constant STEP_CYCLES    : positive := CLK_HZ / 1000 * STEP_MSEC;
 constant CLK_PERIOD     : time := 1 sec / CLK_HZ;
 constant LED_COUNT      : positive := 8;
-constant VALUE_COUNT    : positive := 2**LED_COUNT;
+constant VALUE_COUNT    : positive := 2 ** LED_COUNT;
 
 -- LED は 0 で点灯するため、値を反転したものが出力になる。
 function led_of(value : natural) return std_logic_vector is
@@ -23,7 +23,7 @@ end function;
 
 signal clk          : std_logic := '0';
 signal pushbutton3  : std_logic := '1';
-signal led          : std_logic_vector(LED_COUNT-1 downto 0);
+signal led          : std_logic_vector(LED_COUNT - 1 downto 0);
 signal test_done    : boolean := false;
 
 begin
@@ -49,7 +49,7 @@ begin
 end process;
 
 p_test : process
-    variable previous   : std_logic_vector(LED_COUNT-1 downto 0);
+    variable previous   : std_logic_vector(LED_COUNT - 1 downto 0);
     variable cycles     : natural;
 
     -- 出力が落ち着いた時刻で見るため、立ち上がりから 1/4 周期ずらして観測する。
@@ -69,7 +69,7 @@ begin
     pushbutton3 <= '1';
 
     -- 1 周ぶん数え、最大値の次に 0 へ戻ってからも続くことを確認する。
-    for step in 1 to VALUE_COUNT+1 loop
+    for step in 1 to VALUE_COUNT + 1 loop
         previous := led;
         cycles := 0;
         loop

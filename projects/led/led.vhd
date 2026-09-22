@@ -17,7 +17,7 @@ architecture rtl of led is
 constant STEP_CYCLES    : positive := CLK_HZ / 1000 * STEP_MSEC;
 
 signal reset_p  : std_logic;
-signal count    : natural range 0 to STEP_CYCLES-1 := 0;
+signal count    : natural range 0 to STEP_CYCLES - 1 := 0;
 signal value    : unsigned(led'range) := (others => '0');
 
 begin
@@ -32,7 +32,7 @@ begin
         if reset_p = '1' then
             count <= 0;
             value <= (others => '0');
-        elsif count = STEP_CYCLES-1 then
+        elsif count = STEP_CYCLES - 1 then
             count <= 0;
             value <= value + 1;
         else

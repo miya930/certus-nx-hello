@@ -6,8 +6,8 @@ library neorv32;
 entity riscv_rust is
     generic (
     CLK_HZ      : positive := 25_000_000;
-    IMEM_BYTES  : positive := 16*1024;
-    DMEM_BYTES  : positive := 8*1024);
+    IMEM_BYTES  : positive := 16 * 1024;
+    DMEM_BYTES  : positive := 8 * 1024);
     port (
     system_25m_clk  : in  std_logic;
     pushbutton3     : in  std_logic;

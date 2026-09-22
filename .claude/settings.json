@@ -1,0 +1,17 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Write|Edit|MultiEdit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "f=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get(\"tool_input\", {}).get(\"file_path\", \"\"))'); case \"$f\" in \"$CLAUDE_PROJECT_DIR\"/*) ;; *) exit 0 ;; esac; cd \"$(dirname \"$f\")\" 2>/dev/null || exit 0; top=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$top/vsg.yaml\" ] || exit 0; git check-ignore -q \"$f\" && exit 0; case \"$f\" in *.rs) out=$(rustfmt --edition 2021 \"$f\" 2>&1) ;; *.py) out=$(uvx ruff@0.16.8 format -q \"$f\" 2>&1) ;; *.vhd) out=$(uvx --from vsg==3.35.0 vsg -c \"$top/vsg.yaml\" --fix -of syntastic -f \"$f\" 2>&1) ;; *.md | *.json | *.yaml | *.yml) out=$(npx --yes prettier@3.9.8 --log-level warn --write \"$f\" 2>&1) ;; *) exit 0 ;; esac || { echo \"$out\" >&2; exit 2; }",
+                        "timeout": 120,
+                        "statusMessage": "Formatting the edited file"
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -1,0 +1,103 @@
+# VSG で VHDL を整形するときの設定。
+# 規則の既定値は、このリポジトリの VHDL の書き方と違うものが多いため、今の書き方に合わせて変える。
+
+indent:
+  tokens:
+    # アーキテクチャの宣言と文は字下げしない。
+    architecture_body:
+      architecture_keyword: { token: 0, after: 0 }
+      begin_keyword: { token: 0, after: 0 }
+      end_keyword: { token: 0, after: 0 }
+    # use 句は library 句と同じ深さに置く。
+    use_clause:
+      keyword:
+        {
+          token: current,
+          after: current,
+          token_after_library_clause: current,
+          token_if_no_matching_library_clause: current,
+        }
+    # generic と port の要素は、キーワードと同じ深さに置く。
+    generic_clause:
+      generic_keyword: { token: current, after: current }
+      close_parenthesis: { token: current, after: current }
+    port_clause:
+      port_keyword: { token: current, after: current }
+      close_parenthesis: { token: current, after: current }
+    generic_map_aspect:
+      generic_keyword: { token: current, after: current }
+      close_parenthesis: { token: current, after: current }
+    port_map_aspect:
+      port_keyword: { token: current, after: current }
+      close_parenthesis: { token: current, after: current }
+
+rule:
+  global:
+    indent_size: 4
+    # 名前より広めに取った桁でそろえているため、グループの中で一番右の桁にそろえる。
+    compact_alignment: "no"
+  group:
+    # 空行は、処理のまとまりを示すために自分で入れる。
+    blank_line: { disable: true }
+    # 名前の大文字と小文字は、呼び出す先の IP や Lattice のプリミティブの名前に合わせる。
+    # また VSG は宣言だけを書き換えて参照を書き換えないため、同じ名前の綴りがずれる。
+    case::name: { disable: true }
+
+  # 初期値は動作に関わるため、消さない。
+  signal_007: { disable: true }
+  variable_007: { disable: true }
+  port_012: { disable: true }
+
+  # 次の規則は、このリポジトリで使っていない書き方を足すため外す。
+  entity_015: { disable: true }
+  architecture_010: { disable: true }
+  process_012: { disable: true }
+  process_018: { disable: true }
+  function_020: { disable: true }
+  procedure_014: { disable: true }
+  instantiation_033: { disable: true }
+  instantiation_034: { disable: true }
+  instantiation_036: { disable: true }
+  component_021: { disable: true }
+  component_022: { disable: true }
+  generate_011: { disable: true }
+  case_012: { disable: true }
+  package_body_003: { disable: true }
+  if_002: { disable: true }
+  assert_002: { disable: true }
+  assert_004: { disable: true }
+  assert_005: { disable: true }
+  constant_012: { disable: true }
+  constant_016: { disable: true }
+
+  # := とサブタイプの名前は桁をそろえない。
+  declarative_part_400: { disable: true }
+  process_400: { disable: true }
+  entity_018: { disable: true }
+  subprogram_body_400: { disable: true }
+  architecture_029: { disable: true }
+  # case の選択肢は、others と桁をそろえることがある。
+  case_005: { disable: true }
+
+  # ポートの向きは、in の後ろに 2 文字、out の後ろに 1 文字空けて型の桁をそろえる。
+  port_007: { spaces_after: 2 }
+  port_008: { spaces_after: 1 }
+  # use の後ろは、library 句の名前と桁をそろえる。
+  library_006: { number_of_spaces: 5 }
+  # かっこはキーワードや名前に続けて書き、閉じかっこは最後の要素と同じ行に書く。
+  generic_010: { action: same_line }
+  port_014: { action: same_line }
+  generic_map_004: { action: same_line }
+  port_map_004: { action: same_line }
+  generic_map_006: { number_of_spaces: 0 }
+  port_map_006: { number_of_spaces: 0 }
+  process_002: { number_of_spaces: 0 }
+  # 関数とプロシージャの宣言は、名前とかっこの間だけを詰め、ほかの空白は 1 つにする。
+  # VSG はこれらを 1 つの規則で決めるため、規則を外す。
+  function_100: { disable: true }
+  procedure_100: { disable: true }
+  function_019:
+    { first_open_paren: ignore, last_close_paren: ignore, interface_list_semicolon: ignore, interface_element: ignore }
+  procedure_013:
+    { first_open_paren: ignore, last_close_paren: ignore, interface_list_semicolon: ignore, interface_element: ignore }
+  conditional_waveforms_001: { allow_single_line: "yes" }

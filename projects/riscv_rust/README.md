@@ -25,16 +25,16 @@ probe-rs に渡すメモリの配置は、`neorv32.yaml` の `variants` のう�
 コアから見たアドレスの割り当てを次に示す。
 全ての領域は FPGA の中にあり、FPGA の外とは I/O のピンでつながる。
 
-| アドレス | 大きさ | 中身 | FPGA での実体 |
-|---|---|---|---|
-| `0x00000000` | 16 KB | 命令メモリ | EBR 8 個 |
-| `0x80000000` | 8 KB | データメモリ | EBR 4 個 |
-| `0xFFE00000` | 2 KB | 起動 ROM | EBR |
-| `0xFFF40000` | 64 KB | CLINT のマシンタイマ | FPGA の中のレジスタ |
-| `0xFFF50000` | 64 KB | UART0 | TXD_UART と RXD_UART のピン |
-| `0xFFFC0000` | 64 KB | GPIO | 汎用 LED のピン |
-| `0xFFFE0000` | 64 KB | SYSINFO | FPGA の中のレジスタ |
-| `0xFFFF0000` | 64 KB | デバッグモジュール | J5 の JTAG のピン |
+| アドレス     | 大きさ | 中身                 | FPGA での実体               |
+| ------------ | ------ | -------------------- | --------------------------- |
+| `0x00000000` | 16 KB  | 命令メモリ           | EBR 8 個                    |
+| `0x80000000` | 8 KB   | データメモリ         | EBR 4 個                    |
+| `0xFFE00000` | 2 KB   | 起動 ROM             | EBR                         |
+| `0xFFF40000` | 64 KB  | CLINT のマシンタイマ | FPGA の中のレジスタ         |
+| `0xFFF50000` | 64 KB  | UART0                | TXD_UART と RXD_UART のピン |
+| `0xFFFC0000` | 64 KB  | GPIO                 | 汎用 LED のピン             |
+| `0xFFFE0000` | 64 KB  | SYSINFO              | FPGA の中のレジスタ         |
+| `0xFFFF0000` | 64 KB  | デバッグモジュール   | J5 の JTAG のピン           |
 
 外部バスは入れていないため、表にないアドレスを読み書きするとバスエラーの例外になる。
 命令メモリとデータメモリの位置と大きさは、`riscv_rust.vhd` の generic、`firmware/memory.x`、`neorv32.yaml` で合わせる。
@@ -111,13 +111,13 @@ NEORV32 のデバッグモジュールは、コアを止めずにメモリを読
 
 LFD2NX-40-8BG256C で配置配線した結果を次に示す。
 
-| 資源 | 使用量 | 総量 |
-|---|---|---|
-| LUT | 4,726 | 32,256 |
-| FF | 1,913 | 32,256 |
-| EBR | 13 | 84 |
-| 分散 RAM | 42 | 4,032 |
-| I/O | 16 | 111 |
+| 資源     | 使用量 | 総量   |
+| -------- | ------ | ------ |
+| LUT      | 4,726  | 32,256 |
+| FF       | 1,913  | 32,256 |
+| EBR      | 13     | 84     |
+| 分散 RAM | 42     | 4,032  |
+| I/O      | 16     | 111    |
 
 SYSTEM_25M_CLK の最大周波数は 139.4 MHz で、25 MHz に対して十分な余裕がある。
 
@@ -164,12 +164,12 @@ cargo run
 rust-dap は、`--no-default-features --features jtag,set_clock` で JTAG 用にビルドする。
 
 | J5 のピン | 信号 | Pico のピン |
-|---|---|---|
-| 1 | TCK | 4 (GPIO2) |
-| 2 | TMS | 5 (GPIO3) |
-| 3 | TDI | 9 (GPIO6) |
-| 4 | TDO | 7 (GPIO5) |
-| 5 | GND | 8 (GND) |
+| --------- | ---- | ----------- |
+| 1         | TCK  | 4 (GPIO2)   |
+| 2         | TMS  | 5 (GPIO3)   |
+| 3         | TDI  | 9 (GPIO6)   |
+| 4         | TDO  | 7 (GPIO5)   |
+| 5         | GND  | 8 (GND)     |
 
 ボードと Pico はそれぞれの USB から電源を取るため、3.3 V のピン同士はつながない。
 J5 のピンと FPGA のボールの対応は、`datasheets/FPGA-EB-02032-1-2-Certus-NX-Versa-Evaluation-Board.md` にある。

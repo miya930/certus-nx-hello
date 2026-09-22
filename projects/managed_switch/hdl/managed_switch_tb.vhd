@@ -8,15 +8,15 @@ end managed_switch_tb;
 
 architecture sim of managed_switch_tb is
 
-constant PHY_CLK_HZ     : positive := 125_000_000;
-constant PHY_CLK_PERIOD : time := 1 sec / PHY_CLK_HZ;
-constant SYS_CLK_HZ     : positive := 25_000_000;
-constant SYS_CLK_PERIOD : time := 1 sec / SYS_CLK_HZ;
-constant RMII_CLK_HZ    : positive := 50_000_000;
+constant PHY_CLK_HZ      : positive := 125_000_000;
+constant PHY_CLK_PERIOD  : time := 1 sec / PHY_CLK_HZ;
+constant SYS_CLK_HZ      : positive := 25_000_000;
+constant SYS_CLK_PERIOD  : time := 1 sec / SYS_CLK_HZ;
+constant RMII_CLK_HZ     : positive := 50_000_000;
 constant RMII_CLK_PERIOD : time := 1 sec / RMII_CLK_HZ;
 
 -- 基板では DP83867 が 100BASE-TX でリンクするため、RGMII も 100 Mbps の 25 MHz で動かす。
-constant RGMII_CLK_HZ   : positive := 25_000_000;
+constant RGMII_CLK_HZ     : positive := 25_000_000;
 constant RGMII_CLK_PERIOD : time := 1 sec / RGMII_CLK_HZ;
 
 -- DP83867 は、送信と受信のクロックをデータに対して 2 ns ずらす。
@@ -61,7 +61,7 @@ function make_frame(src : mac_addr_t) return byte_array_t is
     variable crc    : crc_word_t := CRC_INIT;
 begin
     for n in 0 to 13 loop
-        frame(n) := header(111 - 8*n downto 104 - 8*n);
+        frame(n) := header(111 - 8 * n downto 104 - 8 * n);
     end loop;
     for n in 14 to FRAME_BYTES - 1 loop
         frame(n) := std_logic_vector(to_unsigned(n, 8));
@@ -70,7 +70,7 @@ begin
         crc := crc_next(crc, frame(n));
     end loop;
     for n in 0 to FCS_BYTES - 1 loop
-        frame(FRAME_BYTES + n) := not flip_byte(crc(31 - 8*n downto 24 - 8*n));
+        frame(FRAME_BYTES + n) := not flip_byte(crc(31 - 8 * n downto 24 - 8 * n));
     end loop;
     return frame;
 end function;
@@ -293,7 +293,7 @@ p_test : process
             for half in 0 to 1 loop
                 wait until falling_edge(rgmii_rxclk);
                 wait for RGMII_SKEW;
-                rgmii_rxd    <= bytes(n)(4*half + 3 downto 4*half);
+                rgmii_rxd    <= bytes(n)(4 * half + 3 downto 4 * half);
                 rgmii_rxctrl <= '1';
             end loop;
         end loop;
@@ -310,7 +310,7 @@ p_test : process
             for pair in 0 to 3 loop
                 wait until rising_edge(rmii_clk);
                 wait for RMII_RX_DELAY;
-                rmii_rxd    <= bytes(n)(2*pair + 1 downto 2*pair);
+                rmii_rxd    <= bytes(n)(2 * pair + 1 downto 2 * pair);
                 rmii_crs_dv <= '1';
             end loop;
         end loop;

@@ -8,5 +8,28 @@
         "flash_algorithms/mt25q/Cargo.toml"
     ],
     // rust-analyzer の検査と cargo run が同じビルドのフォルダを取り合わないよう、検査は別のフォルダに出す。
-    "rust-analyzer.cargo.targetDir": true
+    "rust-analyzer.cargo.targetDir": true,
+    // 保存したファイルは、コミットの前と同じフォーマッタで整形する。
+    // Rust は rust-analyzer が同じ rustfmt と rustfmt.toml で整形するため、そちらに任せる。
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "editor.formatOnSave": true
+    },
+    // ほかの種類は、フォーマッタと版を .claude/settings.json の hook とそろえる。
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": "\\.py$",
+                "cmd": "uvx ruff@0.16.8 format \"${file}\""
+            },
+            {
+                "match": "\\.vhd$",
+                "cmd": "uvx --from vsg==3.35.0 vsg -c \"${workspaceFolder}/vsg.yaml\" --fix -f \"${file}\""
+            },
+            {
+                "match": "\\.(md|json|ya?ml)$",
+                "cmd": "npx --yes prettier@3.9.8 --write \"${file}\""
+            }
+        ]
+    }
 }

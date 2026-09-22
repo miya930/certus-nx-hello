@@ -10,20 +10,20 @@ entity dpram is
     TRIPORT : boolean := false);
     port (
     wr_clk  : in  std_logic;
-    wr_addr : in  unsigned(AWIDTH-1 downto 0);
+    wr_addr : in  unsigned(AWIDTH - 1 downto 0);
     wr_en   : in  std_logic;
-    wr_val  : in  std_logic_vector(DWIDTH-1 downto 0);
-    wr_rval : out std_logic_vector(DWIDTH-1 downto 0);
+    wr_val  : in  std_logic_vector(DWIDTH - 1 downto 0);
+    wr_rval : out std_logic_vector(DWIDTH - 1 downto 0);
     rd_clk  : in  std_logic;
-    rd_addr : in  unsigned(AWIDTH-1 downto 0);
+    rd_addr : in  unsigned(AWIDTH - 1 downto 0);
     rd_en   : in  std_logic := '1';
-    rd_val  : out std_logic_vector(DWIDTH-1 downto 0));
+    rd_val  : out std_logic_vector(DWIDTH - 1 downto 0));
 end dpram;
 
 architecture nexus of dpram is
 
-subtype word_t is std_logic_vector(DWIDTH-1 downto 0);
-type ram_t is array(0 to 2**AWIDTH-1) of word_t;
+subtype word_t is std_logic_vector(DWIDTH - 1 downto 0);
+type ram_t is array(0 to 2 ** AWIDTH - 1) of word_t;
 
 signal ram      : ram_t := (others => (others => '0'));
 signal ram_tri  : ram_t := (others => (others => '0'));
