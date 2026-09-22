@@ -1,4 +1,4 @@
-# RISC-V ソフトコアで Rust を動かす
+# RISC-V ソフトコアで動く Rust ファームウェア
 
 LFD2NX-40 に NEORV32 の RISC-V コアを実装し、Rust で書いたプログラムを動かす。
 ファームウェアは `cargo run` で JTAG から書き込むため、FPGA のコンフィグとは別の経路になる。
@@ -77,9 +77,9 @@ NEORV32 のデバッグモジュールは、コアを止めずにメモリを読
 パニックのメッセージは整形に `core::fmt` が要り、命令メモリを圧迫するため、出さない。
 ログをどの深さまで出すかは、`firmware/.cargo/config.toml` の `DEFMT_LOG` で決める。
 
-### cargo run で書き込むための対処
+### `cargo run` での書き込みに必要な変更
 
-`cargo run` でファームウェアを書き込んで動かすために、次の対処をした。
+`cargo run` でファームウェアを書き込んで動かすために、次の変更をした。
 どれか 1 つが欠けても、`cargo run` は通らない。
 
 1. NEORV32 のデバッガを `OCD_EN` で有効にし、JTAG を J5 に出した。
@@ -122,7 +122,7 @@ LFD2NX-40-8BG256C で配置配線した結果を次に示す。
 SYSTEM_25M_CLK の最大周波数は 139.4 MHz で、25 MHz に対して十分な余裕がある。
 
 合成のログには、ABC が出す `The network is combinational.` という警告が 1 件残る。
-これは論理最適化の内部の知らせで、回路の不具合を示すものではない。
+これは論理最適化の途中の情報で、回路の不具合を示すものではない。
 nextpnr-nexus の警告はない。
 
 ## 実行方法
@@ -158,7 +158,7 @@ cargo run
 
 プログラムの出力は、`/dev/ttyUSB1` に 19200 8N1 で出る。
 
-### デバッガの配線
+### プローブの配線
 
 プローブには、Raspberry Pi Pico か Pico 2 に rust-dap を書き込んだ CMSIS-DAP を使う。
 rust-dap は、`--no-default-features --features jtag,set_clock` で JTAG 用にビルドする。
@@ -174,7 +174,7 @@ rust-dap は、`--no-default-features --features jtag,set_clock` で JTAG 用に
 ボードと Pico はそれぞれの USB から電源を取るため、3.3 V のピン同士はつながない。
 J5 のピンと FPGA のボールの対応は、`datasheets/FPGA-EB-02032-1-2-Certus-NX-Versa-Evaluation-Board.md` にある。
 
-### プローブを WSL から使う
+### WSL でのプローブの設定
 
 rust-dap の VID:PID は `6666:4444` である。
 WSL では、Windows 側の usbipd でプローブを WSL に渡す。

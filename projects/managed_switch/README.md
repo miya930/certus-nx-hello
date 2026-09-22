@@ -1,4 +1,4 @@
-# IP で管理できるスイッチングハブ
+# SatCat5 と NEORV32 によるマネージドスイッチ
 
 SatCat5 のスイッチに NEORV32 の RISC-V コアをつなぎ、スイッチ自身が IP アドレスを持つようにする。
 スイッチは、ボードの DP83867 と、PMOD につないだ LAN8720 の間でフレームを中継する。
@@ -26,16 +26,16 @@ probe-rs に渡すメモリの配置は、`neorv32.yaml` の `variants` のう�
 
 ### メモリマップ
 
-ここでは、何をどこに書くか、FPGA の中のアドレスマップ、各デバイスのレジスタ、メモリの中の配置、SPI Flash の中の配置を示す。
+ここでは、書き込み先、FPGA の中のアドレスマップ、各デバイスのレジスタ、命令メモリとデータメモリの配置、SPI Flash の配置を示す。
 CPU は、全てのデバイスをメモリマップド I/O として、アドレスへの読み書きで操作する。
 
-#### 書き込む先
+#### 書き込み先
 
 ビットストリーム、ファームウェア、設定を、どのアドレスに何で書くかを次の図に示す。
 緑の矢印は、電源を入れた直後に、起動 ROM が Flash の firmware image を命令メモリにコピーする流れである。
 図の右半分は、FPGA の中のアドレスマップのうち、書き込みに関わる領域だけを示す。
 
-![書き込む先と経路](doc/managed_switch_memory_map.svg)
+![書き込み先と経路](doc/managed_switch_memory_map.svg)
 
 | 書くもの | 書く先 | 手段 | 経路 |
 |---|---|---|---|
@@ -112,7 +112,7 @@ MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/driv
 - `cfgbus_port_stats`: `third_party/satcat5/src/vhdl/common/cfgbus_port_stats.vhd`
 - `cfgbus_mdio`: `third_party/satcat5/src/vhdl/common/cfgbus_mdio.vhd`
 
-#### 内蔵の I/O のレジスタ
+#### 内蔵 I/O のレジスタ
 
 ファームウェアは、NEORV32 に内蔵の I/O のうち、次のレジスタを使う。
 
@@ -128,7 +128,7 @@ MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/driv
 
 各レジスタのビットの定義は、`third_party/neorv32/sw/lib/include/` の `neorv32_clint.h`、`neorv32_uart.h`、`neorv32_spi.h`、`neorv32_gpio.h` にある。
 
-#### 命令メモリとデータメモリの中
+#### 命令メモリとデータメモリの配置
 
 ファームウェアの配置は、`firmware/memory.x` と `riscv-rt` のリンカスクリプトで決まる。
 
@@ -145,7 +145,7 @@ MDIO で読み書きする DP83867 のレジスタと値は、`firmware/src/driv
 フレームのバッファ、smoltcp の状態、コンソールの状態は、全て `main` の中の変数として、スタックに置かれる。
 各セクションの位置と大きさは、`llvm-size -A` で確かめられる。
 
-#### SPI Flash の中
+#### SPI Flash の配置
 
 Flash は 128 Mbit で、アドレスは `0x000000` から `0xFFFFFF` まである。
 
@@ -210,7 +210,7 @@ LAN8720 が受信データを保つ時間は、FPGA の入力レジスタが求�
 この計算に使った FPGA の値は、専用のクロック入力ピンを前提にしている。
 PMOD の REF_CLK は一般のピンから入るため、受信のマージンは実機で確かめる必要がある。
 
-### CPU とスイッチのつなぎ方
+### CPU とスイッチの接続
 
 NEORV32 の外部バスは Wishbone なので、`cfgbus_host_wishbone` を通して ConfigBus を操作できる。
 
@@ -230,7 +230,7 @@ NEORV32 は、応答をストローブの次のサイクルから受け付ける
 Flash には、probe-rs が `flash_algorithms/mt25q` の書き込みプログラムをデータメモリで動かして書く。
 probe-rs は書き込みの進み具合を表示する。
 命令メモリにも書くのは、書いた直後から Flash を読まずに動かし、defmt のログを見るためである。
-それぞれを書くアドレスは、「書き込む先」の表にある。
+それぞれを書くアドレスは、「書き込み先」の表にある。
 
 電源を入れた直後と、FPGA をコンフィグし直した直後は、命令メモリが空である。
 そのとき起動 ROM が Flash の firmware image を命令メモリにコピーし、ファームウェアを動かす。
@@ -324,7 +324,7 @@ SPI のクロックは約 98 kHz にする。
 アプリは、ドライバの型を通してデバイスを使う。
 
 SatCat5 のスイッチコア、CPU のポート、ポートごとの統計、MDIO は、ConfigBus の別々のデバイスである。
-ファームウェアでは、これらをまとめて 1 つのスイッチングハブ `Switch` として扱う。
+ファームウェアでは、これらをまとめて 1 つのスイッチ `Switch` として扱う。
 DP83867 は、`Switch` の MDIO を通して読み書きする。
 
 レジスタの型は、NEORV32 と SatCat5 のどちらも、SVD から svd2rust で生成する。
@@ -377,7 +377,7 @@ CPU のポートで 1000 バイトの ping を 1 つ処理すると、その回�
 | `drivers/leds.rs` | ドライバ | ボードの汎用 LED |
 | `drivers/clock.rs` | ドライバ | CLINT のマシンタイマによる時刻と、一定の周期で処理を行うための `Ticker` |
 | `drivers/dp83867/` | ドライバ | ボードの Ethernet PHY の DP83867 |
-| `drivers/switch/` | ドライバ | SatCat5 のスイッチングハブ |
+| `drivers/switch/` | ドライバ | SatCat5 のスイッチ |
 
 ボードの SPI Flash の MT25QU128 のドライバは、起動 ROM や Flash の書き込みプログラムと共有するため、`crates/mt25q` に置く。
 レジスタ操作の層は、`crates/neorv32-hal`、`crates/neorv32-pac`、`crates/satcat5-pac` にある。
@@ -385,7 +385,7 @@ CPU のポートで 1000 バイトの ping を 1 つ処理すると、その回�
 `drivers/switch/` では、`Switch` の操作を、ConfigBus のデバイスごとのファイルに分ける。
 `drivers/dp83867/` では、型とその操作を `mod.rs` に置き、レジスタの番号を `registers.rs` に分ける。
 
-`cargo run` で JTAG から書き込むための対処は、`projects/riscv_rust/README.md` にまとめてある。
+`cargo run` での書き込みに必要な変更は、`projects/riscv_rust/README.md` にまとめてある。
 このプロジェクトでは、それに加えて次の 2 つをした。
 
 - 命令メモリの 64 KB に収めるため、開発用のビルドもリリースと同じ最適化にする。
@@ -454,7 +454,7 @@ nextpnr-nexus は、設計全体に 1 つの目標周波数しか与えられな
 この警告は許容し、クロックごとの要求は `tools/check_timing.py` で確かめる。
 
 合成のログには、ABC が出す `The network is combinational.` という警告が 1 件残る。
-これは論理最適化の内部の知らせで、回路の不具合を示すものではない。
+これは論理最適化の途中の情報で、回路の不具合を示すものではない。
 
 ファームウェアは、命令メモリの 64 KB のうち約 36 KB を使う。
 命令メモリは、32 KB ではファームウェアが入りきらなくなったため、64 KB にした。
@@ -483,7 +483,7 @@ make flash  # FPGA を SPI Flash にコンフィグする
 `cargo run-ram` は命令メモリにだけ書き、Flash の中身は変えない。
 どちらも、probe-rs は書き込んだあとも接続を続け、defmt のログを表示する。
 Ctrl+C で止めても、ファームウェアは動き続ける。
-プローブの配線と、WSL でプローブを使う準備は、`projects/riscv_rust/README.md` と同じである。
+プローブの配線と WSL での設定は、`projects/riscv_rust/README.md` にある。
 
 ```sh
 cd firmware

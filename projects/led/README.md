@@ -1,4 +1,4 @@
-# LED の 2 進カウンタ
+# LED による 2 進カウンタ
 
 Certus-NX Versa Evaluation Board の 8 個の汎用 LED に、2 進数のカウンタを表示する。
 ボードと開発環境の動作を確かめるための、最小のデモである。
@@ -51,7 +51,7 @@ FF の 30 個は、値の 8 ビットと、切り替えの周期を数える 22 
 SYSTEM_25M_CLK の最大周波数は 352 MHz で、25 MHz に対して十分な余裕がある。
 
 合成のログには、ABC が出す `The network is combinational.` という警告が 1 件残る。
-これは論理最適化の内部の知らせで、この回路には順序回路も含まれている。
+これは論理最適化の途中の情報で、回路全体が組み合わせ回路だという意味ではない。
 
 ## 実行方法
 
@@ -60,8 +60,8 @@ yosys、GHDL、nextpnr-nexus を含む OSS CAD Suite が必要になる。
 ```sh
 make        # 合成と配置配線、ビットストリームの生成
 make sim    # テストベンチ
-make load   # SRAM に書き込む
-make flash  # SPI Flash に書き込む
+make load   # FPGA を SRAM にコンフィグする
+make flash  # FPGA を SPI Flash にコンフィグする
 ```
 
 - `make` は、`build/report.json` に資源ごとの使用数と最大動作周波数を出力する。
