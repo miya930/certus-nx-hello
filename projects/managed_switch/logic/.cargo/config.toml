@@ -1,0 +1,3 @@
+[build]
+# ビルド生成物は、ファームウェアと同じく build/ の下に出す。
+target-dir = "../build/logic"

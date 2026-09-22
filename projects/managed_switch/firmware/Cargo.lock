@@ -269,6 +269,7 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "embedded-hal",
+ "managed_switch_logic",
  "mt25q",
  "neorv32-hal",
  "riscv",
@@ -276,6 +277,10 @@ dependencies = [
  "satcat5-pac",
  "smoltcp",
 ]
+
+[[package]]
+name = "managed_switch_logic"
+version = "0.1.0"
 
 [[package]]
 name = "memchr"

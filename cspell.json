@@ -20,6 +20,7 @@
         "certusnx",
         "cfgbus",
         "chformal",
+        "clippy",
         "clkddr",
         "clkin",
         "clkout",

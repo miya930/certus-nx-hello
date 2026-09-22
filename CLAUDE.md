@@ -30,6 +30,8 @@
 - SatCat5 の ConfigBus のデバイスのレジスタは、`crates/satcat5-pac` の型で読み書きする。
   使うレジスタが増えたら、`crates/satcat5-pac/satcat5.svd` に書き足す。
 - ファームウェアのドライバは、ボードや FPGA の中のデバイス 1 つにつき 1 つの型にし、`firmware/src/drivers/` に置く。
+- ファームウェアのうち、ハードウェアに触れず PC 上で単体テストする処理は、プロジェクトの `logic/` のクレートに置く。
+  `firmware/` の中に置くと、RISC-V 向けの `cargo clippy --all-targets` がテストをビルドして失敗する。
 - probe-rs のチップの定義は `third_party/neorv32_probe_rs/neorv32.yaml` の 1 つだけにし、プロジェクトごとの違いは `variants` の項目で分ける。
   プロジェクトの `neorv32.yaml` は、このファイルへのシンボリックリンクにし、コピーを置かない。
   `sed -i` はシンボリックリンクを普通のファイルに置き換えるため、編集は実体に対して行う。

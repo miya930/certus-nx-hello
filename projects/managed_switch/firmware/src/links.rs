@@ -4,7 +4,7 @@
 use crate::drivers::dp83867::Dp83867;
 use crate::drivers::switch::RMII_STATUS_LOCK;
 use crate::memory_map::SWITCH;
-use crate::ports::PORT_RMII;
+use managed_switch_logic::ports::PORT_RMII;
 
 pub struct Links {
     phy: Dp83867,

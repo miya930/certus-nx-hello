@@ -3,9 +3,14 @@
 
 use crate::host::Host;
 use crate::memory_map::SWITCH;
-use crate::settings::{self, Settings};
+use managed_switch_logic::settings::{self, Record, Settings, RECORD_BYTES};
 use mt25q::Mt25q;
 use neorv32_hal::spi::Spi;
+
+/// FPGA のビットストリームは Flash の先頭から置かれる。
+/// 設定は、ビットストリームと重ならない最後の区画に置く。
+const OFFSET: u32 = mt25q::CAPACITY_BYTES - mt25q::SUBSECTOR_BYTES;
+const _: () = assert!(RECORD_BYTES <= mt25q::PAGE_BYTES);
 
 pub struct Config {
     flash: Mt25q<Spi>,
@@ -19,7 +24,9 @@ pub struct Config {
 impl Config {
     /// Flash に保存した設定を読む。保存していなければ既定値で動く。
     pub fn load(mut flash: Mt25q<Spi>) -> Self {
-        let saved = Settings::load(&mut flash);
+        let mut record: Record = [0; RECORD_BYTES];
+        let Ok(()) = flash.read(OFFSET, &mut record);
+        let saved = Settings::decode(&record);
         Config { flash, current: saved.unwrap_or(settings::DEFAULT), saved, applied: None }
     }
 
@@ -40,7 +47,8 @@ impl Config {
     }
 
     pub fn save(&mut self) {
-        let Ok(()) = self.current.save(&mut self.flash);
+        let Ok(()) = self.flash.erase_subsector(OFFSET);
+        let Ok(()) = self.flash.program(OFFSET, &self.current.encode());
         self.saved = Some(self.current);
     }
 

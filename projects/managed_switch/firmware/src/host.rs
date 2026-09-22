@@ -4,7 +4,7 @@
 
 use crate::drivers::clock::Clock;
 use crate::drivers::switch::CpuPort;
-use crate::settings::Settings;
+use managed_switch_logic::settings::Settings;
 use smoltcp::iface::{Config, Interface, SocketSet, SocketStorage};
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpCidr, Ipv4Address, Ipv4Cidr};
