@@ -17,7 +17,8 @@ NEORV32 の JTAG は PMOD の J5 に出し、probe-rs からファームウェ�
 トップは `riscv_rust.vhd`、ピン割り当ては `riscv_rust.pdc` に置く。
 起動 ROM は、`third_party/neorv32_probe_rs` のものを使う。
 ファームウェアは `firmware/` に置く。
-probe-rs に渡すメモリの配置は、`third_party/neorv32_probe_rs/neorv32.yaml` の `variants` のうち、`riscv_rust` の項目に置く。
+probe-rs に渡すメモリの配置は、`neorv32.yaml` の `variants` のうち、`riscv_rust` の項目に置く。
+`neorv32.yaml` は、`third_party/neorv32_probe_rs/neorv32.yaml` へのシンボリックリンクである。
 
 ### メモリマップ
 
@@ -36,7 +37,7 @@ probe-rs に渡すメモリの配置は、`third_party/neorv32_probe_rs/neorv32.
 | `0xFFFF0000` | 64 KB | デバッグモジュール | J5 の JTAG のピン |
 
 外部バスは入れていないため、表にないアドレスを読み書きするとバスエラーの例外になる。
-命令メモリとデータメモリの位置と大きさは、`riscv_rust.vhd` の generic、`firmware/memory.x`、`third_party/neorv32_probe_rs/neorv32.yaml` で合わせる。
+命令メモリとデータメモリの位置と大きさは、`riscv_rust.vhd` の generic、`firmware/memory.x`、`neorv32.yaml` で合わせる。
 
 ## 設計
 
@@ -85,7 +86,7 @@ NEORV32 のデバッグモジュールは、コアを止めずにメモリを読
 2. IDCODE の製造元の欄に、Lattice の ID を `OCD_JEDEC_ID` で入れた。
 3. 内蔵ブートローダを、`third_party/neorv32_probe_rs` の起動 ROM に差し替えた。
 4. ブートローダがなくなったため、ファームウェアが UART の速度を自分で設定するようにした。
-5. 命令メモリとデータメモリの位置を、`third_party/neorv32_probe_rs/neorv32.yaml` で probe-rs に渡した。
+5. 命令メモリとデータメモリの位置を、`neorv32.yaml` で probe-rs に渡した。
    probe-rs に組み込まれた RISC-V のチップ定義には、このコアのメモリの配置がない。
 6. `firmware/.cargo/config.toml` で、`probe-rs run` を cargo のランナーにした。
    probe-rs の設定は、同じファイルの `[env]` から環境変数で渡す。

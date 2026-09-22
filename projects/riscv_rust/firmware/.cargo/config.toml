@@ -15,7 +15,7 @@ runner = "probe-rs run"
 DEFMT_LOG = "debug"
 # probe-rs の設定は、コマンドの引数の代わりに環境変数で渡す。
 PROBE_RS_CHIP = "riscv_rust"
-PROBE_RS_CHIP_DESCRIPTION_PATH = { value = "../../../third_party/neorv32_probe_rs/neorv32.yaml", relative = true }
+PROBE_RS_CHIP_DESCRIPTION_PATH = { value = "../neorv32.yaml", relative = true }
 # probe-rs はボードの FTDI もプローブとして見つけるため、rust-dap を VID:PID で選ぶ。
 PROBE_RS_PROBE = "6666:4444"
 PROBE_RS_PROTOCOL = "jtag"

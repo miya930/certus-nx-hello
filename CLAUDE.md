@@ -31,7 +31,8 @@
   使うレジスタが増えたら、`crates/satcat5-pac/satcat5.svd` に書き足す。
 - ファームウェアのドライバは、ボードや FPGA の中のデバイス 1 つにつき 1 つの型にし、`firmware/src/drivers/` に置く。
 - probe-rs のチップの定義は `third_party/neorv32_probe_rs/neorv32.yaml` の 1 つだけにし、プロジェクトごとの違いは `variants` の項目で分ける。
-  プロジェクトの中にコピーを置かない。
+  プロジェクトの `neorv32.yaml` は、このファイルへのシンボリックリンクにし、コピーを置かない。
+  `sed -i` はシンボリックリンクを普通のファイルに置き換えるため、編集は実体に対して行う。
 - probe-rs が Flash に書くときに NEORV32 で動かす書き込みプログラムは、`flash_algorithms/<name>/` に 1 つずつ置く。
   target-gen で取り出した項目は、`third_party/neorv32_probe_rs/neorv32.yaml` にコピーする。
 - `tools/` のスクリプトは、`tools/<name>/` のフォルダに 1 つずつ置く。
