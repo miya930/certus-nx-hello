@@ -92,7 +92,7 @@ fn main() -> ! {
     console.prompt();
 
     loop {
-        host.process_frames();
+        host.process_frame();
 
         console.process_input(&mut config, &mut traffic);
         config.apply(&mut host);
