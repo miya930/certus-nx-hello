@@ -20,10 +20,10 @@ import sys
 
 # クロックの名前と、そのクロックに必要な周波数 (MHz)。
 REQUIRED_MHZ = {
-    "rx_data[0]$glb_clk": 125.0,    # RGMII の受信
-    "tx_ctrl[0]$glb_clk": 125.0,    # RGMII の送信
-    "rx_data[125]$glb_clk": 50.0,   # RMII の送受信
-    "cfg_cmd[0]$glb_clk": 25.0,     # スイッチコア、ConfigBus、CPU
+    "rx_data[0]$glb_clk": 125.0,  # RGMII の受信
+    "tx_ctrl[0]$glb_clk": 125.0,  # RGMII の送信
+    "rx_data[125]$glb_clk": 50.0,  # RMII の送受信
+    "cfg_cmd[0]$glb_clk": 25.0,  # スイッチコア、ConfigBus、CPU
 }
 
 

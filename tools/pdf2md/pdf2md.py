@@ -42,7 +42,8 @@ def margin_texts(pdf: Path) -> list[str]:
         for page in doc:
             height = page.rect.height
             blocks = [
-                b[4] for b in page.get_text("blocks")
+                b[4]
+                for b in page.get_text("blocks")
                 if b[3] < height * MARGIN_RATIO or b[1] > height * (1 - MARGIN_RATIO)
             ]
             texts.append(" ".join(" ".join(blocks).split()))
@@ -107,7 +108,9 @@ def convert(pdf: Path, out_dir: Path, images: bool) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("pdfs", nargs="+", type=Path, help="変換する PDF")
-    parser.add_argument("-o", "--out-dir", type=Path, default=DEFAULT_DIR, help="出力先ディレクトリ (既定は datasheets/)")
+    parser.add_argument(
+        "-o", "--out-dir", type=Path, default=DEFAULT_DIR, help="出力先ディレクトリ (既定は datasheets/)"
+    )
     parser.add_argument("--images", action="store_true", help="図を PNG として書き出す")
     args = parser.parse_args()
 

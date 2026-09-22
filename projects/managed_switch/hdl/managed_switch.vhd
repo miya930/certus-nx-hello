@@ -7,8 +7,8 @@ library neorv32;
 
 entity managed_switch is
     generic (
-    IMEM_BYTES      : positive := 64*1024;
-    DMEM_BYTES      : positive := 16*1024;
+    IMEM_BYTES      : positive := 64 * 1024;
+    DMEM_BYTES      : positive := 16 * 1024;
     RESET_USEC      : positive := 1_000;
     STARTUP_USEC    : positive := 200_000);
     port (
@@ -101,7 +101,7 @@ constant LATTICE_JEDEC_ID : std_ulogic_vector(10 downto 0) := "00000100001";
 signal reset_p      : std_logic;
 signal phy_reset_n  : std_logic := '0';
 signal startup_p    : std_logic := '1';
-signal count        : natural range 0 to STARTUP_CYCLES-1 := 0;
+signal count        : natural range 0 to STARTUP_CYCLES - 1 := 0;
 
 signal cfg_cmd      : cfgbus_cmd;
 signal cfg_ack      : cfgbus_ack;
@@ -110,10 +110,10 @@ signal ack_mailmap  : cfgbus_ack;
 signal ack_stats    : cfgbus_ack;
 signal ack_mdio     : cfgbus_ack;
 
-signal rx_data      : array_rx_m2s(PORT_TOTAL-1 downto 0);
-signal tx_data      : array_tx_s2m(PORT_TOTAL-1 downto 0);
-signal tx_ctrl      : array_tx_m2s(PORT_TOTAL-1 downto 0);
-signal err_ports    : array_port_error(PORT_TOTAL-1 downto 0);
+signal rx_data      : array_rx_m2s(PORT_TOTAL - 1 downto 0);
+signal tx_data      : array_tx_s2m(PORT_TOTAL - 1 downto 0);
+signal tx_ctrl      : array_tx_m2s(PORT_TOTAL - 1 downto 0);
+signal err_ports    : array_port_error(PORT_TOTAL - 1 downto 0);
 
 signal gpio         : std_ulogic_vector(31 downto 0);
 signal gpio_in      : std_ulogic_vector(31 downto 0);
@@ -146,7 +146,7 @@ begin
             count <= 0;
             phy_reset_n <= '0';
             startup_p <= '1';
-        elsif count = STARTUP_CYCLES-1 then
+        elsif count = STARTUP_CYCLES - 1 then
             startup_p <= '0';
         else
             count <= count + 1;
