@@ -93,9 +93,12 @@ impl Traffic {
         self.last_msec = now;
     }
 
+    /// 累計を 0 に戻す。
+    /// 統計のブロックに残っている前回の取り込みからの数は、先に取り込んで捨て、クリアの後の累計に入らないようにする。
     pub fn clear(&mut self) {
+        self.sample();
         self.totals = [Totals::default(); PORT_COUNT];
-        self.since_msec = self.clock.millis();
+        self.since_msec = self.last_msec;
     }
 
     /// 累計を数えている時間。
