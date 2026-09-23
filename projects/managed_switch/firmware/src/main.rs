@@ -7,8 +7,6 @@ mod drivers;
 mod host;
 mod links;
 mod memory_map;
-mod ports;
-mod settings;
 mod traffic;
 
 use defmt_rtt as _;

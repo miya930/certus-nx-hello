@@ -20,6 +20,7 @@ embedded-hal = "1"
 neorv32-hal = { path = "../../../crates/neorv32-hal" }
 mt25q = { path = "../../../crates/mt25q" }
 satcat5-pac = { path = "../../../crates/satcat5-pac" }
+managed_switch_logic = { path = "../logic" }
 
 [dependencies.smoltcp]
 version = "0.14"

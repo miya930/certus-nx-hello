@@ -8,8 +8,8 @@ use crate::drivers::dp83867::Dp83867;
 use crate::drivers::switch::RMII_STATUS_LOCK;
 use crate::drivers::terminal::{Style, Terminal};
 use crate::memory_map::SWITCH;
-use crate::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
 use crate::traffic::Traffic;
+use managed_switch_logic::ports::{PORT_NAMES, PORT_RGMII, PORT_RMII};
 
 /// help の一覧の 1 項目。引数を付けた形は、コマンドだけの形の下に並べる。
 struct Command {

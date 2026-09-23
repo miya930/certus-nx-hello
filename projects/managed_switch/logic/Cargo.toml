@@ -1,0 +1,4 @@
+[package]
+name = "managed_switch_logic"
+version = "0.1.0"
+edition = "2021"

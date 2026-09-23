@@ -3,7 +3,7 @@
 
 use crate::drivers::clock::Clock;
 use crate::memory_map::SWITCH;
-use crate::ports::{PORT_COUNT, PORT_NAMES};
+use managed_switch_logic::ports::{PORT_COUNT, PORT_NAMES};
 
 /// 取り込みの間隔。1 秒あたりの数は 32 ビットの数に収まる。
 pub const SAMPLE_MSEC: u64 = 1000;

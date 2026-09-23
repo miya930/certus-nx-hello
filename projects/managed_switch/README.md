@@ -20,7 +20,7 @@ CPU は、ConfigBus を通して、スイッチコア、ポートごとの統計
 設定は、CPU の SPI で、FPGA のコンフィグに使う SPI Flash に書く。
 ファームウェアは、PMOD の J5 に出した JTAG から probe-rs で書き込む。
 
-HDL と制約は `hdl/`、ファームウェアは `firmware/`、ビルドで使うスクリプトは `tools/`、図は `doc/` に置く。
+HDL と制約は `hdl/`、ファームウェアは `firmware/`、ファームウェアのうちハードウェアに触れない処理は `logic/`、ビルドで使うスクリプトは `tools/`、図は `doc/` に置く。
 probe-rs に渡すメモリの配置は、`neorv32.yaml` の `variants` のうち、`managed_switch` の項目に置く。
 `neorv32.yaml` は、`third_party/neorv32_probe_rs/neorv32.yaml` へのシンボリックリンクである。
 
@@ -305,7 +305,7 @@ MAC アドレステーブルは、スイッチコアの `mac_query` の操作で
 ### 設定の保存
 
 設定は、IP アドレスとプレフィックス長、デフォルトゲートウェイ、MAC アドレス、ミラーリングのポートである。
-既定値は `firmware/src/settings.rs` にある。
+既定値は `logic/src/settings.rs` にある。
 
 設定は、SPI Flash の最後の 4 KB の区画に、CRC-32 を付けて書く。
 FPGA のビットストリームは Flash の先頭から置かれるため、この区画とは重ならない。
@@ -367,11 +367,9 @@ CPU のポートで 1000 バイトの ping を 1 つ処理すると、その回�
 | ------------------- | -------- | ---------------------------------------------------------------------------- |
 | `main.rs`           |          | 起動とメインループ                                                           |
 | `memory_map.rs`     |          | ConfigBus のデバイスのアドレス                                               |
-| `ports.rs`          |          | スイッチのポートの番号と名前                                                 |
 | `host.rs`           | アプリ   | スイッチ自身の IP アドレスでの通信                                           |
 | `console/`          | アプリ   | 行の編集とコマンド                                                           |
-| `config.rs`         | アプリ   | 動作中の設定と保存した設定を持ち、変わった設定をスイッチに反映する           |
-| `settings.rs`       | アプリ   | 設定の値と、Flash に保存する書式                                             |
+| `config.rs`         | アプリ   | 動作中の設定と保存した設定を持ち、Flash に読み書きし、スイッチに反映する     |
 | `traffic.rs`        | アプリ   | ポートごとの送受信の累計と速さ                                               |
 | `links.rs`          | アプリ   | 外につながる 2 つのポートのリンクと、その変化での MAC アドレステーブルの消去 |
 | `drivers/terminal/` | ドライバ | UART0 の端末への書式付きの出力と、1 バイトずつの入力                         |
@@ -379,6 +377,9 @@ CPU のポートで 1000 バイトの ping を 1 つ処理すると、その回�
 | `drivers/clock.rs`  | ドライバ | CLINT のマシンタイマによる時刻と、一定の周期で処理を行うための `Ticker`      |
 | `drivers/dp83867/`  | ドライバ | ボードの Ethernet PHY の DP83867                                             |
 | `drivers/switch/`   | ドライバ | SatCat5 のスイッチ                                                           |
+
+ハードウェアに触れない処理は、PC 上で単体テストするため、`logic/` のクレートに分ける。
+`logic/src/ports.rs` はスイッチのポートの番号と名前、`logic/src/settings.rs` は設定の値と Flash に保存するレコードの書式である。
 
 ボードの SPI Flash の MT25QU128 のドライバは、起動 ROM や Flash の書き込みプログラムと共有するため、`crates/mt25q` に置く。
 レジスタ操作の層は、`crates/neorv32-hal`、`crates/neorv32-pac`、`crates/satcat5-pac` にある。
@@ -424,6 +425,12 @@ probe-rs は、バッファを読むたびにコアを止める。
 
 あわせて `third_party/satcat5_nexus` のパッチを当てた `eth_statistics` を、統計と送信のクロックを分けて動かす。
 エラーの数が種類ごとに正しく数えられ、取り込みのたびに 0 に戻ることを確かめる。
+
+`logic/` の単体テストでは、設定のレコードについて次のことを確かめる。
+
+- 符号化したレコードを復号すると、元の設定に戻る。
+- 既定値のレコードのバイト列が変わらず、Flash に保存済みの設定を読める。
+- 消した Flash、1 バイトでも変わったレコード、ほかの書式、存在しないミラーのポートのレコードは読まない。
 
 MDIO、統計、SPI Flash、コンソールは、ファームウェアが動かすため、実機で確かめた。
 
@@ -490,6 +497,13 @@ Ctrl+C で止めても、ファームウェアは動き続ける。
 cd firmware
 cargo run      # SPI Flash と命令メモリに書く
 cargo run-ram  # 命令メモリにだけ書く
+```
+
+ハードウェアに触れない処理の単体テストは、`logic/` の中で PC 上で動かす。
+
+```sh
+cd logic
+cargo test
 ```
 
 コンソールには、FT2232H の Port B のシリアルポートから入る。
