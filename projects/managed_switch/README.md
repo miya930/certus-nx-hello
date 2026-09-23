@@ -45,8 +45,8 @@ CPU は、全てのデバイスをメモリマップド I/O として、アド�
 | ファームウェア          | 命令メモリの `0x00000000` から | 電源投入                     | 命令メモリが空のとき、起動 ROM が Flash の firmware image を NEORV32 の SPI で読んでコピーする |
 | 保存した設定            | Flash の `0xFFF000` から       | コンソールの `save`          | ファームウェアが、NEORV32 の SPI で書く                                                        |
 
-probe-rs は Flash をアドレスで扱うため、Flash の位置に `0x20000000` を足したアドレスで指す。
-その理由と、probe-rs に見せる範囲を絞る理由は、`flash_algorithms/mt25q/README.md` にある。
+probe-rs は Flash をアドレスで扱うため、Flash の位置をそのままアドレスとして指す。
+probe-rs に見せる範囲を絞る理由は、`flash_algorithms/mt25q/README.md` にある。
 
 #### FPGA の中のアドレスマップ
 

@@ -57,8 +57,8 @@
   <!-- probe-rs から見た Flash -->
   <rect x="455" y="230" width="180" height="70" fill="#eef4fb" stroke="#4a6fa5" stroke-width="1.2"/>
   <text x="545" y="250" text-anchor="middle" font-size="12">probe-rs の FLASH の範囲</text>
-  <text x="545" y="270" text-anchor="middle" font-size="11" font-family="'DejaVu Sans Mono', Consolas, monospace">0x20F00000 から 128 KB</text>
-  <text x="545" y="289" text-anchor="middle" font-size="11" fill="#555">Flash の位置 + 0x20000000</text>
+  <text x="545" y="270" text-anchor="middle" font-size="11" font-family="'DejaVu Sans Mono', Consolas, monospace">0x00F00000 から 128 KB</text>
+  <text x="545" y="289" text-anchor="middle" font-size="11" fill="#555">Flash の位置をそのまま使う</text>
   <line x1="422" y1="265" x2="455" y2="265" stroke="#4a6fa5" stroke-width="1.5" stroke-dasharray="4 3"/>
 
   <!-- 起動時のコピー -->

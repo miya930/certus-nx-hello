@@ -25,9 +25,9 @@ from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
-# probe-rs が Flash を指すアドレス。SPI Flash の 0x00F00000 からの範囲にあたる。
+# firmware image を置く SPI Flash の位置。probe-rs には、SPI Flash のアドレスをそのまま渡す。
 # 位置と firmware image の書式は third_party/neorv32_probe_rs/bootrom と、third_party/neorv32_probe_rs/neorv32.yaml の FLASH に合わせる。
-IMAGE_ADDRESS = 0x20F0_0000
+IMAGE_ADDRESS = 0x00F0_0000
 IMAGE_MAGIC = b"IMEM"
 # 命令メモリはアドレス 0 から始まり、データメモリは 0x80000000 から始まる。
 IMEM_END = 0x8000_0000
