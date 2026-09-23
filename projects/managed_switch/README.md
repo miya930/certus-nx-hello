@@ -475,7 +475,8 @@ nextpnr-nexus は、設計全体に 1 つの目標周波数しか与えられな
 
 ## 実行方法
 
-OSS CAD Suite と、Rust の RISC-V 向けのツールチェーン、probe-rs の 0.32.0 以降を用意する。
+OSS CAD Suite と、Rust の RISC-V 向けのツールチェーン、probe-rs を用意する。
+動作を確かめた版は、リポジトリの直下の README.md にある。
 
 ```sh
 rustup target add riscv32imc-unknown-none-elf

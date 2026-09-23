@@ -9,8 +9,9 @@ PDC の create_clock も --sdc も内部のクロック網には届かず、制�
 この設計は RGMII の 125 MHz、RMII の 50 MHz、スイッチコアと CPU の 25 MHz を持つため、
 合成前の目標を一番高い 125 MHz に合わせ、実際の要求はここで確かめる。
 
-クロックの名前は、トップの信号名とポートの番号から合成時に作られる。
-信号名やポートの番号を変えたときは、この表も直す。
+クロックの名前は、合成時に信号名とポートの番号から作られる。
+同じ設計でも、yosys の版によって名前が変わる。
+信号名やポートの番号、ツールの版を変えたときは、この表も直す。
 """
 
 from __future__ import annotations
@@ -20,10 +21,10 @@ import sys
 
 # クロックの名前と、そのクロックに必要な周波数 (MHz)。
 REQUIRED_MHZ = {
-    "rx_data[0]$glb_clk": 125.0,  # RGMII の受信
-    "tx_ctrl[0]$glb_clk": 125.0,  # RGMII の送信
-    "rx_data[125]$glb_clk": 50.0,  # RMII の送受信
-    "cfg_cmd[0]$glb_clk": 25.0,  # スイッチコア、ConfigBus、CPU
+    "u_core.ports_rx_data[0]$glb_clk": 125.0,  # RGMII の受信
+    "u_core.pktout_clk[0]$glb_clk": 125.0,  # RGMII の送信
+    "u_core.pktout_clk[1]$glb_clk": 50.0,  # RMII の送受信
+    "u_cfgbus.cfg_cmd[clk]$glb_clk": 25.0,  # スイッチコア、ConfigBus、CPU
 }
 
 
