@@ -28,9 +28,14 @@ impl<'a> Host<'a> {
         Instant::from_millis(clock.millis() as i64)
     }
 
-    /// CPU のポートに届いたフレームを処理し、応答を送る。
-    pub fn process_frames(&mut self) {
-        self.iface.poll(Self::now(&self.clock), &mut self.device, &mut self.sockets);
+    /// CPU のポートに届いたフレームを 1 つだけ処理し、応答を送る。
+    /// Interface::poll は、デバイスにフレームがある限り受信を続ける。
+    /// フレームが届き続けるとメインループのほかの処理が止まるため、受信を 1 フレームずつに分ける。
+    pub fn process_frame(&mut self) {
+        let now = Self::now(&self.clock);
+        self.iface.poll_maintenance(now);
+        self.iface.poll_ingress_single(now, &mut self.device, &mut self.sockets);
+        self.iface.poll_egress(now, &mut self.device, &mut self.sockets);
     }
 
     /// MAC アドレス、IP アドレス、ゲートウェイを設定する。

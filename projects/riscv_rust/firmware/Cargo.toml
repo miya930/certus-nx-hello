@@ -15,7 +15,10 @@ riscv-rt = { version = "0.18", features = ["single-hart"] }
 # defmt-rtt は割り込みを止めて RTT のバッファを書くため、単一ハートの critical-section の実装を使う。
 riscv = { version = "0.16", features = ["critical-section-single-hart"] }
 defmt = "1"
-defmt-rtt = "1"
+# probe-rs は、RTT のバッファが満杯なら書き手を待たせるモードにする。
+# そのままでは probe-rs が切れたあとにログを書くところで止まるため、満杯でも待たずに書くモードに固定する。
+# このモードでは、まだ読まれていない古いログは上書きされる。
+defmt-rtt = { version = "1", features = ["disable-blocking-mode"] }
 embedded-hal = "1"
 embedded-io = "0.7"
 neorv32-hal = { path = "../../../crates/neorv32-hal" }

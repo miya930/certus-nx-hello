@@ -15,7 +15,10 @@ riscv-rt = { version = "0.18", features = ["single-hart"] }
 # PAC の Peripherals::take と defmt-rtt は critical-section を使うため、単一ハートの実装を riscv から取る。
 riscv = { version = "0.16", features = ["critical-section-single-hart"] }
 defmt = "1"
-defmt-rtt = "1"
+# probe-rs は、RTT のバッファが満杯なら書き手を待たせるモードにする。
+# そのままでは probe-rs が切れたあとにログを書くところで止まるため、満杯でも待たずに書くモードに固定する。
+# このモードでは、まだ読まれていない古いログは上書きされる。
+defmt-rtt = { version = "1", features = ["disable-blocking-mode"] }
 embedded-hal = "1"
 neorv32-hal = { path = "../../../crates/neorv32-hal" }
 mt25q = { path = "../../../crates/mt25q" }
