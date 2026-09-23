@@ -29,8 +29,16 @@ impl Uart {
         let regs: Registers = unsafe { &*pac::Uart0::ptr() };
         let divider = clk_hz / (2 * baud);
         // SVD は分周比の欄に値の範囲を持たないため、bits で書く。10 ビットに収まる速度で使う前提である。
-        regs.ctrl().write(|w| unsafe { w.uart_ctrl_en().set_bit().uart_ctrl_baud().bits((divider - 1) as u16) });
-        Uart { tx: UartTx { regs }, rx: UartRx { regs } }
+        regs.ctrl().write(|w| unsafe {
+            w.uart_ctrl_en()
+                .set_bit()
+                .uart_ctrl_baud()
+                .bits((divider - 1) as u16)
+        });
+        Uart {
+            tx: UartTx { regs },
+            rx: UartRx { regs },
+        }
     }
 
     /// 送信と受信を、別々の持ち主に渡せるように分ける。
@@ -42,7 +50,9 @@ impl Uart {
 impl UartTx {
     pub fn write_byte(&mut self, byte: u8) {
         while self.regs.ctrl().read().uart_ctrl_tx_nfull().bit_is_clear() {}
-        self.regs.data().write(|w| unsafe { w.uart_data_rtx().bits(byte) });
+        self.regs
+            .data()
+            .write(|w| unsafe { w.uart_data_rtx().bits(byte) });
     }
 }
 

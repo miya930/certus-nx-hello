@@ -27,7 +27,12 @@ impl Config {
         let mut record: Record = [0; RECORD_BYTES];
         let Ok(()) = flash.read(OFFSET, &mut record);
         let saved = Settings::decode(&record);
-        Config { flash, current: saved.unwrap_or(settings::DEFAULT), saved, applied: None }
+        Config {
+            flash,
+            current: saved.unwrap_or(settings::DEFAULT),
+            saved,
+            applied: None,
+        }
     }
 
     pub fn current(&self) -> &Settings {

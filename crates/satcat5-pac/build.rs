@@ -14,13 +14,20 @@ fn main() {
     // 説明文は `"]` で終わるため、そこまでを取り除く。
     let code = generation.lib_rs;
     let code = match code.strip_prefix("# ! [doc = \"") {
-        Some(rest) => rest.split_once("\"]").expect("unterminated doc attribute").1,
+        Some(rest) => {
+            rest.split_once("\"]")
+                .expect("unterminated doc attribute")
+                .1
+        }
         None => &code,
     };
     // 末尾の Peripherals は、SVD の仮のアドレス 0 にデバイスを置き、アドレスを与える手段を持たない。
     // その所有を記録する DEVICE_PERIPHERALS は no_mangle で、neorv32-pac の同名の記号とリンクで衝突する。
     // アドレスは各プロジェクトが与えるため、ここから後ろを取り除く。
-    let code = code.split_once(PERIPHERALS_START).expect("Peripherals is missing").0;
+    let code = code
+        .split_once(PERIPHERALS_START)
+        .expect("Peripherals is missing")
+        .0;
     let out = Path::new(&env::var("OUT_DIR").unwrap()).join("pac.rs");
     fs::write(out, code).unwrap();
 }

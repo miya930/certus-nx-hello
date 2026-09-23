@@ -24,7 +24,16 @@ impl Mdio {
     }
 
     pub fn write(&self, phy: u8, register: u8, value: u16) {
-        self.command(|w| w.op().write().phy().set(phy).reg().set(register).data().set(value));
+        self.command(|w| {
+            w.op()
+                .write()
+                .phy()
+                .set(phy)
+                .reg()
+                .set(register)
+                .data()
+                .set(value)
+        });
     }
 
     pub fn read(&self, phy: u8, register: u8) -> u16 {

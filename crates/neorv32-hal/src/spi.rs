@@ -29,7 +29,12 @@ impl Spi {
             .unwrap_or((PRESCALERS.len() as u8 - 1, DIVIDERS - 1));
         // 選択値と分周は、どちらも上の表と範囲から選ぶため、欄の幅に収まる。
         regs.ctrl().write(|w| unsafe {
-            w.spi_ctrl_en().set_bit().spi_ctrl_prsc().bits(prescaler).spi_ctrl_cdiv().bits(divider as u8)
+            w.spi_ctrl_en()
+                .set_bit()
+                .spi_ctrl_prsc()
+                .bits(prescaler)
+                .spi_ctrl_cdiv()
+                .bits(divider as u8)
         });
         Spi { regs, chip_select }
     }
@@ -44,7 +49,9 @@ impl Spi {
     }
 
     fn transfer_byte(&mut self, byte: u8) -> u8 {
-        self.regs.data().write(|w| unsafe { w.spi_data().bits(byte) });
+        self.regs
+            .data()
+            .write(|w| unsafe { w.spi_data().bits(byte) });
         self.wait_idle();
         self.regs.data().read().spi_data().bits()
     }
@@ -59,7 +66,9 @@ impl SpiDevice for Spi {
         self.command(DATA_CMD | DATA_CS_ENABLE | self.chip_select as u32);
         for operation in operations {
             match operation {
-                Operation::Read(buf) => buf.iter_mut().for_each(|byte| *byte = self.transfer_byte(0)),
+                Operation::Read(buf) => buf
+                    .iter_mut()
+                    .for_each(|byte| *byte = self.transfer_byte(0)),
                 Operation::Write(buf) => buf.iter().for_each(|&byte| {
                     self.transfer_byte(byte);
                 }),
@@ -68,7 +77,9 @@ impl SpiDevice for Spi {
                         *slot = self.transfer_byte(write.get(index).copied().unwrap_or(0));
                     }
                 }
-                Operation::TransferInPlace(buf) => buf.iter_mut().for_each(|byte| *byte = self.transfer_byte(*byte)),
+                Operation::TransferInPlace(buf) => buf
+                    .iter_mut()
+                    .for_each(|byte| *byte = self.transfer_byte(*byte)),
                 Operation::DelayNs(_) => {}
             }
         }

@@ -40,7 +40,11 @@ impl Settings {
         for &byte in data {
             crc ^= byte as u32;
             for _ in 0..8 {
-                crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+                crc = if crc & 1 != 0 {
+                    (crc >> 1) ^ 0xEDB8_8320
+                } else {
+                    crc >> 1
+                };
             }
         }
         !crc
@@ -75,7 +79,11 @@ impl Settings {
             mac: record[4..10].try_into().ok()?,
             ip: record[10..14].try_into().ok()?,
             prefix: record[14],
-            gateway: if record[15] == NONE { None } else { record[16..20].try_into().ok() },
+            gateway: if record[15] == NONE {
+                None
+            } else {
+                record[16..20].try_into().ok()
+            },
             mirror,
         })
     }
@@ -159,14 +167,22 @@ mod tests {
     #[test]
     fn reads_every_existing_mirror_port() {
         for port in 0..PORT_NAMES.len() as u8 {
-            let settings = Settings { mirror: Some(port), ..DEFAULT };
+            let settings = Settings {
+                mirror: Some(port),
+                ..DEFAULT
+            };
             assert_eq!(Settings::decode(&settings.encode()), Some(settings));
         }
     }
 
     #[test]
     fn ignores_the_gateway_bytes_without_the_gateway_flag() {
-        let record = with_body(&DEFAULT, |record| record[16..20].copy_from_slice(&[10, 0, 0, 1]));
-        assert_eq!(Settings::decode(&record).map(|settings| settings.gateway), Some(None));
+        let record = with_body(&DEFAULT, |record| {
+            record[16..20].copy_from_slice(&[10, 0, 0, 1])
+        });
+        assert_eq!(
+            Settings::decode(&record).map(|settings| settings.gateway),
+            Some(None)
+        );
     }
 }

@@ -28,7 +28,9 @@ BAUD = 19200
 PROMPT = b"CMD:>"
 
 
-def read_until(port: serial.Serial, pattern: bytes, timeout: float) -> tuple[bool, bytes]:
+def read_until(
+    port: serial.Serial, pattern: bytes, timeout: float
+) -> tuple[bool, bytes]:
     """pattern が現れるまで読む。現れたかどうかと、読んだ全体を返す。"""
     deadline = time.time() + timeout
     buffer = b""

@@ -12,7 +12,7 @@
     // rust-analyzer の検査と cargo run が同じビルドのフォルダを取り合わないよう、検査は別のフォルダに出す。
     "rust-analyzer.cargo.targetDir": true,
     // 保存したファイルは、コミットの前と同じフォーマッタで整形する。
-    // Rust は rust-analyzer が同じ rustfmt と rustfmt.toml で整形するため、そちらに任せる。
+    // Rust は rust-analyzer が同じ rustfmt の既定の設定で整形するため、そちらに任せる。
     "[rust]": {
         "editor.defaultFormatter": "rust-lang.rust-analyzer",
         "editor.formatOnSave": true

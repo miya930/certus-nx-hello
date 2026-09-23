@@ -22,7 +22,12 @@ struct Command {
 }
 
 const COMMANDS: [Command; 9] = [
-    Command { name: "help", text: "Show this list.", forms: &[], examples: &[] },
+    Command {
+        name: "help",
+        text: "Show this list.",
+        forms: &[],
+        examples: &[],
+    },
     Command {
         name: "status",
         text: "Show the link state and the load of each port.",
@@ -41,8 +46,18 @@ const COMMANDS: [Command; 9] = [
         forms: &[(CLEAR_WORD, "Empty the MAC address table.")],
         examples: &["mac", "mac clear"],
     },
-    Command { name: "info", text: "Show the parameters of the switch core and the uptime.", forms: &[], examples: &[] },
-    Command { name: "show", text: "Show the settings.", forms: &[], examples: &[] },
+    Command {
+        name: "info",
+        text: "Show the parameters of the switch core and the uptime.",
+        forms: &[],
+        examples: &[],
+    },
+    Command {
+        name: "show",
+        text: "Show the settings.",
+        forms: &[],
+        examples: &[],
+    },
     Command {
         name: "set",
         text: "List the settings and the values they take.",
@@ -56,7 +71,12 @@ const COMMANDS: [Command; 9] = [
             "set mirror none",
         ],
     },
-    Command { name: "save", text: "Save the settings to the SPI Flash.", forms: &[], examples: &[] },
+    Command {
+        name: "save",
+        text: "Save the settings to the SPI Flash.",
+        forms: &[],
+        examples: &[],
+    },
     Command {
         name: "defaults",
         text: "Restore the default settings. Use \"save\" to keep them.",
@@ -66,14 +86,29 @@ const COMMANDS: [Command; 9] = [
 ];
 
 /// set の値を変える形は、設定の表と並べないと打てないため、一覧には出さず set help でだけ出す。
-const SET_FORM: (&str, &str) = ("ITEM VALUE", "Change a setting now. Use \"save\" to keep it.");
+const SET_FORM: (&str, &str) = (
+    "ITEM VALUE",
+    "Change a setting now. Use \"save\" to keep it.",
+);
 
 /// set で変えられる設定の名前、値の書式、何を変えるか。
 const SET_ITEMS: [(&str, &str, &str); 4] = [
-    ("ip", "A.B.C.D/N", "IP address and prefix length of the switch"),
+    (
+        "ip",
+        "A.B.C.D/N",
+        "IP address and prefix length of the switch",
+    ),
     ("gateway", "A.B.C.D | none", "Default gateway"),
-    ("mac", "XX:XX:XX:XX:XX:XX", "MAC address of the switch, not multicast"),
-    ("mirror", "rgmii | rmii | cpu | none", "Port that also gets every frame"),
+    (
+        "mac",
+        "XX:XX:XX:XX:XX:XX",
+        "MAC address of the switch, not multicast",
+    ),
+    (
+        "mirror",
+        "rgmii | rmii | cpu | none",
+        "Port that also gets every frame",
+    ),
 ];
 
 const NONE_WORD: &str = "none";
@@ -101,7 +136,13 @@ impl<'a> Commands<'a> {
         phy: Dp83867,
         clock: Clock,
     ) -> Self {
-        Commands { config, traffic, out, phy, clock }
+        Commands {
+            config,
+            traffic,
+            out,
+            phy,
+            clock,
+        }
     }
 
     /// 行を実行する。設定を変えるコマンドは動作中の設定を書き換えるだけで、スイッチへの反映はメインループが行う。
@@ -131,9 +172,16 @@ impl<'a> Commands<'a> {
             }
             "defaults" => {
                 self.config.restore_defaults();
-                self.out.puts_styled(Style::WARNING, "Restored the defaults. Use \"save\" to keep them.\n");
+                self.out.puts_styled(
+                    Style::WARNING,
+                    "Restored the defaults. Use \"save\" to keep them.\n",
+                );
             }
-            _ => self.error(&["Unknown command \"", command, "\". Type \"help\" for the list.\n"]),
+            _ => self.error(&[
+                "Unknown command \"",
+                command,
+                "\". Type \"help\" for the list.\n",
+            ]),
         }
     }
 
@@ -175,12 +223,14 @@ impl<'a> Commands<'a> {
         for command in &COMMANDS {
             self.put_command(command);
         }
-        self.out.puts("\nType \"COMMAND help\", such as \"set help\", for examples.\n");
+        self.out
+            .puts("\nType \"COMMAND help\", such as \"set help\", for examples.\n");
     }
 
     /// コマンドだけの形と、引数を付けた形を 1 行ずつ出す。
     fn put_command(&mut self, command: &Command) {
-        self.out.puts_styled_padded(Style::HEADING, command.name, HELP_COLUMN);
+        self.out
+            .puts_styled_padded(Style::HEADING, command.name, HELP_COLUMN);
         self.out.puts(command.text);
         self.out.puts("\n");
         for &form in command.forms {
@@ -217,7 +267,11 @@ impl<'a> Commands<'a> {
     }
 
     fn put_set_items(&mut self) {
-        self.out.header(&[("ITEM", SET_ITEM_COLUMN), ("VALUE", SET_VALUE_COLUMN), ("CHANGES", 0)]);
+        self.out.header(&[
+            ("ITEM", SET_ITEM_COLUMN),
+            ("VALUE", SET_VALUE_COLUMN),
+            ("CHANGES", 0),
+        ]);
         for (name, value, text) in SET_ITEMS {
             self.out.puts_padded(name, SET_ITEM_COLUMN);
             self.out.puts_padded(value, SET_VALUE_COLUMN);
@@ -386,9 +440,14 @@ impl<'a> Commands<'a> {
         self.out.put_dec(status.speed_mbps);
         self.out.puts(" Mbps\n");
         self.label("Duplex:");
-        self.out.puts(if status.full_duplex { "full\n" } else { "half\n" });
+        self.out.puts(if status.full_duplex {
+            "full\n"
+        } else {
+            "half\n"
+        });
         self.label("MDI:");
-        self.out.puts(if status.mdi_x { "MDI-X\n" } else { "MDI\n" });
+        self.out
+            .puts(if status.mdi_x { "MDI-X\n" } else { "MDI\n" });
         self.label("Partner abilities:");
         let Some(partner) = self.phy.partner() else {
             self.out.puts("no auto-negotiation\n");
@@ -403,7 +462,10 @@ impl<'a> Commands<'a> {
             (partner.half_10, "10 half"),
         ]);
         self.label("Partner pause:");
-        self.put_list(&[(partner.pause, "symmetric"), (partner.asymmetric_pause, "asymmetric")]);
+        self.put_list(&[
+            (partner.pause, "symmetric"),
+            (partner.asymmetric_pause, "asymmetric"),
+        ]);
     }
 
     /// 当てはまる項目の名前を、コンマで区切って 1 行に並べる。
@@ -472,7 +534,8 @@ impl<'a> Commands<'a> {
         }
         self.out.puts("Counted over ");
         self.out.put_duration(self.traffic.counted_msec());
-        self.out.puts(". Discards are FIFO overflows; errors are MAC, PHY and frame errors.\n");
+        self.out
+            .puts(". Discards are FIFO overflows; errors are MAC, PHY and frame errors.\n");
     }
 
     /// MAC アドレステーブルの全ての項目を読み、使われているものだけを出す。
@@ -481,7 +544,8 @@ impl<'a> Commands<'a> {
             None => {}
             Some(CLEAR_WORD) => {
                 SWITCH.mac_clear();
-                self.out.puts_styled(Style::OK, "Cleared the MAC address table.\n");
+                self.out
+                    .puts_styled(Style::OK, "Cleared the MAC address table.\n");
                 return;
             }
             Some(other) => return self.error(&["Unknown argument \"", other, "\".\n"]),
@@ -542,13 +606,21 @@ impl<'a> Commands<'a> {
         out.puts("\nmac      ");
         out.put_mac(&settings.mac);
         out.puts("\nmirror   ");
-        out.puts(settings.mirror.map_or(NONE_WORD, |port| PORT_NAMES[port as usize]));
+        out.puts(
+            settings
+                .mirror
+                .map_or(NONE_WORD, |port| PORT_NAMES[port as usize]),
+        );
         out.puts("\n");
         match self.config.saved() {
-            None => out.puts_styled(Style::WARNING, "No saved settings. Use \"save\" to keep these.\n"),
-            Some(saved) if saved != settings => {
-                out.puts_styled(Style::WARNING, "The settings differ from the saved ones. Use \"save\" to keep them.\n")
-            }
+            None => out.puts_styled(
+                Style::WARNING,
+                "No saved settings. Use \"save\" to keep these.\n",
+            ),
+            Some(saved) if saved != settings => out.puts_styled(
+                Style::WARNING,
+                "The settings differ from the saved ones. Use \"save\" to keep them.\n",
+            ),
             Some(_) => {}
         }
     }
@@ -563,11 +635,18 @@ impl<'a> Commands<'a> {
                 settings.ip = ip;
                 settings.prefix = prefix;
             }),
-            "gateway" => Self::parse_optional(value, Self::parse_ipv4).map(|gateway| settings.gateway = gateway),
+            "gateway" => Self::parse_optional(value, Self::parse_ipv4)
+                .map(|gateway| settings.gateway = gateway),
             "mac" => Self::parse_mac(value).map(|mac| settings.mac = mac),
-            "mirror" => Self::parse_optional(value, Self::parse_port).map(|port| settings.mirror = port),
+            "mirror" => {
+                Self::parse_optional(value, Self::parse_port).map(|port| settings.mirror = port)
+            }
             _ => {
-                self.error(&["Unknown setting \"", item, "\". Type \"set\" for the list.\n"]);
+                self.error(&[
+                    "Unknown setting \"",
+                    item,
+                    "\". Type \"set\" for the list.\n",
+                ]);
                 return;
             }
         };
@@ -586,7 +665,10 @@ impl<'a> Commands<'a> {
     }
 
     fn parse_port(text: &str) -> Option<u8> {
-        PORT_NAMES.iter().position(|&name| name == text).map(|port| port as u8)
+        PORT_NAMES
+            .iter()
+            .position(|&name| name == text)
+            .map(|port| port as u8)
     }
 
     fn parse_ipv4(text: &str) -> Option<[u8; 4]> {
@@ -605,7 +687,8 @@ impl<'a> Commands<'a> {
         let prefix: u8 = prefix.parse().ok()?;
         let ip = Self::parse_ipv4(ip)?;
         let address = Ipv4Addr::from(ip);
-        let unicast = !(address.is_multicast() || address.is_broadcast() || address.is_unspecified());
+        let unicast =
+            !(address.is_multicast() || address.is_broadcast() || address.is_unspecified());
         (prefix <= 32 && unicast).then_some((ip, prefix))
     }
 

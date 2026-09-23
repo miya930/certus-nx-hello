@@ -15,7 +15,11 @@ const STEP_MSEC: u32 = 250;
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
-        defmt::error!("panicked at {=str}:{=u32}", location.file(), location.line());
+        defmt::error!(
+            "panicked at {=str}:{=u32}",
+            location.file(),
+            location.line()
+        );
     }
     loop {}
 }

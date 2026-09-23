@@ -30,7 +30,10 @@ impl<S: SpiDevice> Mt25q<S> {
     }
 
     pub fn read(&mut self, address: u32, buffer: &mut [u8]) -> Result<(), S::Error> {
-        self.spi.transaction(&mut [Operation::Write(&Self::command(READ, address)), Operation::Read(buffer)])
+        self.spi.transaction(&mut [
+            Operation::Write(&Self::command(READ, address)),
+            Operation::Read(buffer),
+        ])
     }
 
     fn write_enable(&mut self) -> Result<(), S::Error> {
@@ -40,7 +43,10 @@ impl<S: SpiDevice> Mt25q<S> {
     fn wait_ready(&mut self) -> Result<(), S::Error> {
         loop {
             let mut status = [0];
-            self.spi.transaction(&mut [Operation::Write(&[READ_STATUS_REGISTER]), Operation::Read(&mut status)])?;
+            self.spi.transaction(&mut [
+                Operation::Write(&[READ_STATUS_REGISTER]),
+                Operation::Read(&mut status),
+            ])?;
             if status[0] & STATUS_WRITE_IN_PROGRESS == 0 {
                 return Ok(());
             }
@@ -50,13 +56,17 @@ impl<S: SpiDevice> Mt25q<S> {
     /// 4 KB の区画を消し、全てのバイトを 0xFF にする。
     pub fn erase_subsector(&mut self, address: u32) -> Result<(), S::Error> {
         self.write_enable()?;
-        self.spi.write(&Self::command(SUBSECTOR_ERASE_4KB, address))?;
+        self.spi
+            .write(&Self::command(SUBSECTOR_ERASE_4KB, address))?;
         self.wait_ready()
     }
 
     pub fn program(&mut self, address: u32, data: &[u8]) -> Result<(), S::Error> {
         self.write_enable()?;
-        self.spi.transaction(&mut [Operation::Write(&Self::command(PAGE_PROGRAM, address)), Operation::Write(data)])?;
+        self.spi.transaction(&mut [
+            Operation::Write(&Self::command(PAGE_PROGRAM, address)),
+            Operation::Write(data),
+        ])?;
         self.wait_ready()
     }
 }

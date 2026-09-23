@@ -39,7 +39,10 @@ struct Line {
 }
 
 impl Line {
-    const EMPTY: Line = Line { bytes: [0; LINE_BYTES], len: 0 };
+    const EMPTY: Line = Line {
+        bytes: [0; LINE_BYTES],
+        len: 0,
+    };
 
     /// 入力は印字できる ASCII に限っているため、UTF-8 として常に正しい。
     fn as_str(&self) -> &str {
@@ -218,7 +221,9 @@ impl LineEditor {
             Key::Right if self.cursor < self.line.len => self.move_to(self.cursor + 1, out),
             Key::Home => self.move_to(0, out),
             Key::End => self.move_to(self.line.len, out),
-            Key::Delete if self.cursor < self.line.len => self.remove(self.cursor, self.cursor + 1, out),
+            Key::Delete if self.cursor < self.line.len => {
+                self.remove(self.cursor, self.cursor + 1, out)
+            }
             Key::Up => self.browse_history(true, out),
             Key::Down => self.browse_history(false, out),
             _ => {}
@@ -368,9 +373,18 @@ impl LineEditor {
                 self.insert(b" ", out);
             }
             _ => {
-                let common = candidates[1..count].iter().fold(candidates[0].len(), |common, word| {
-                    common.min(candidates[0].bytes().zip(word.bytes()).take_while(|(a, b)| a == b).count())
-                });
+                let common =
+                    candidates[1..count]
+                        .iter()
+                        .fold(candidates[0].len(), |common, word| {
+                            common.min(
+                                candidates[0]
+                                    .bytes()
+                                    .zip(word.bytes())
+                                    .take_while(|(a, b)| a == b)
+                                    .count(),
+                            )
+                        });
                 if common > typed {
                     self.insert(&candidates[0].as_bytes()[typed..common], out);
                     return;
