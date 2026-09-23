@@ -44,7 +44,9 @@ impl Mailmap {
         for (index, chunk) in frame.chunks(WORD_BYTES).enumerate() {
             let mut word = [0u8; WORD_BYTES];
             word[..chunk.len()].copy_from_slice(chunk);
-            self.regs().tx_data(index).write(|w| w.set(u32::from_le_bytes(word)));
+            self.regs()
+                .tx_data(index)
+                .write(|w| w.set(u32::from_le_bytes(word)));
         }
         self.regs().tx_ctrl().write(|w| w.set(frame.len() as u32));
     }
@@ -60,7 +62,12 @@ pub struct CpuPort {
 
 impl CpuPort {
     pub(super) const fn new(regs: *const port_mailmap::RegisterBlock) -> Self {
-        CpuPort { mailmap: Mailmap { regs }, rx_buffer: [0; BUFFER_BYTES], tx_buffer: [0; BUFFER_BYTES], rx_count: 0 }
+        CpuPort {
+            mailmap: Mailmap { regs },
+            rx_buffer: [0; BUFFER_BYTES],
+            tx_buffer: [0; BUFFER_BYTES],
+            rx_count: 0,
+        }
     }
 }
 
@@ -90,20 +97,31 @@ impl phy::Device for CpuPort {
         self.rx_count = self.rx_count.wrapping_add(1);
         let mailmap = self.mailmap;
         let (rx_buffer, tx_buffer) = (&self.rx_buffer[..length], &mut self.tx_buffer);
-        Some((RxToken { buffer: rx_buffer }, TxToken { mailmap, buffer: tx_buffer }))
+        Some((
+            RxToken { buffer: rx_buffer },
+            TxToken {
+                mailmap,
+                buffer: tx_buffer,
+            },
+        ))
     }
 
     fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
         if self.mailmap.transmit_busy() {
             return None;
         }
-        Some(TxToken { mailmap: self.mailmap, buffer: &mut self.tx_buffer })
+        Some(TxToken {
+            mailmap: self.mailmap,
+            buffer: &mut self.tx_buffer,
+        })
     }
 }
 
 /// フレームの長さと Ethernet のヘッダを debug のログに出す。
 fn log_frame(direction: &str, frame: &[u8]) {
-    if let Ok(header) = EthernetFrame::new_checked(frame).and_then(|frame| EthernetRepr::parse(&frame)) {
+    if let Ok(header) =
+        EthernetFrame::new_checked(frame).and_then(|frame| EthernetRepr::parse(&frame))
+    {
         defmt::debug!("{=str} {=usize} bytes, {}", direction, frame.len(), header);
     }
 }

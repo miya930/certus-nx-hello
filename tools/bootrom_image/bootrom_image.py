@@ -32,17 +32,26 @@ def load_image(elf_path: Path) -> bytes:
     """起動 ROM の位置に置く中身を、ELF の読み込み用のセグメントから取り出す。"""
     with elf_path.open("rb") as file:
         elf = ELFFile(file)
-        segments = [s for s in elf.iter_segments() if s["p_type"] == "PT_LOAD" and s["p_filesz"] > 0]
+        segments = [
+            s
+            for s in elf.iter_segments()
+            if s["p_type"] == "PT_LOAD" and s["p_filesz"] > 0
+        ]
         rom = [s for s in segments if s["p_paddr"] >= BOOTROM_BASE]
         if len(rom) != 1 or rom[0]["p_paddr"] != BOOTROM_BASE:
-            sys.exit(f"{elf_path}: expected one loadable segment at {BOOTROM_BASE:#010x}")
+            sys.exit(
+                f"{elf_path}: expected one loadable segment at {BOOTROM_BASE:#010x}"
+            )
         data = rom[0].data()
     padding = -len(data) % WORD_BYTES
     return data + bytes(padding)
 
 
 def render(image: bytes) -> str:
-    words = [int.from_bytes(image[i : i + WORD_BYTES], "little") for i in range(0, len(image), WORD_BYTES)]
+    words = [
+        int.from_bytes(image[i : i + WORD_BYTES], "little")
+        for i in range(0, len(image), WORD_BYTES)
+    ]
     # neorv32_bootrom は、image_size_c を 2 のべき乗に切り上げた幅でアドレスを引く。
     rom_words = (1 << (len(image) - 1).bit_length()) // WORD_BYTES
     lines = [

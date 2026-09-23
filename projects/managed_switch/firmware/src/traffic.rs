@@ -110,6 +110,9 @@ impl Traffic {
     pub fn rate_kbps(&self, port: usize) -> (u64, u64) {
         let interval = self.last_interval_msec.max(1);
         let rate = |bytes: u32| bytes as u64 * 8 / interval;
-        (rate(self.last_rx_bytes[port]), rate(self.last_tx_bytes[port]))
+        (
+            rate(self.last_rx_bytes[port]),
+            rate(self.last_tx_bytes[port]),
+        )
     }
 }

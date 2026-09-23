@@ -48,7 +48,9 @@ def main() -> None:
     if unknown:
         raise SystemExit("目標が決まっていないクロックがある: " + ", ".join(unknown))
     if failed:
-        raise SystemExit("タイミングを満たさないクロックがある:\n  " + "\n  ".join(failed))
+        raise SystemExit(
+            "タイミングを満たさないクロックがある:\n  " + "\n  ".join(failed)
+        )
 
 
 if __name__ == "__main__":

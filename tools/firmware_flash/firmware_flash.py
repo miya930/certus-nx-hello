@@ -40,7 +40,11 @@ def load_image(elf_path: Path) -> bytes:
     with elf_path.open("rb") as file:
         for segment in ELFFile(file).iter_segments():
             address = segment["p_paddr"]
-            if segment["p_type"] != "PT_LOAD" or segment["p_filesz"] == 0 or address >= IMEM_END:
+            if (
+                segment["p_type"] != "PT_LOAD"
+                or segment["p_filesz"] == 0
+                or address >= IMEM_END
+            ):
                 continue
             data = segment.data()
             if len(image) < address:
@@ -57,9 +61,19 @@ def main() -> None:
     image = load_image(elf_path)
     bin_path = elf_path.with_suffix(".flash.bin")
     bin_path.write_bytes(IMAGE_MAGIC + len(image).to_bytes(4, "little") + image)
-    print(f"Writing {len(image)} bytes of {elf_path.name} to the SPI flash", file=sys.stderr)
+    print(
+        f"Writing {len(image)} bytes of {elf_path.name} to the SPI flash",
+        file=sys.stderr,
+    )
 
-    download = ["probe-rs", "download", "--binary-format", "bin", "--base-address", hex(IMAGE_ADDRESS)]
+    download = [
+        "probe-rs",
+        "download",
+        "--binary-format",
+        "bin",
+        "--base-address",
+        hex(IMAGE_ADDRESS),
+    ]
     subprocess.run([*download, str(bin_path)], check=True)
     os.execvp("probe-rs", ["probe-rs", "run", str(elf_path), *sys.argv[2:]])
 

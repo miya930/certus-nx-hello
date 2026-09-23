@@ -63,6 +63,9 @@ impl Switch {
 
     pub fn port_link(&self, port: usize) -> Link {
         let link = self.stats(port).link().read();
-        Link { speed_mbps: link.speed().bits().into(), status: link.status().bits().into() }
+        Link {
+            speed_mbps: link.speed().bits().into(),
+            status: link.status().bits().into(),
+        }
     }
 }

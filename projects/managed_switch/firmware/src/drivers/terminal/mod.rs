@@ -144,9 +144,11 @@ impl Terminal {
             self.put_dec(days);
             self.puts("d ");
         }
-        for (value, unit) in
-            [(hours % HOUR_PER_DAY, "h "), (minutes % MIN_PER_HOUR, "m "), (seconds % SEC_PER_MIN, "s")]
-        {
+        for (value, unit) in [
+            (hours % HOUR_PER_DAY, "h "),
+            (minutes % MIN_PER_HOUR, "m "),
+            (seconds % SEC_PER_MIN, "s"),
+        ] {
             if value < 10 {
                 self.put(b'0');
             }

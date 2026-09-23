@@ -44,7 +44,9 @@ impl FlashAlgorithm for Algorithm {
     fn new(_address: u32, _clock: u32, _function: Function) -> Result<Self, ErrorCode> {
         let peripherals = unsafe { pac::Peripherals::steal() };
         let clk_hz = peripherals.sysinfo.clk().read().bits();
-        Ok(Algorithm { flash: Mt25q::new(Spi::new(peripherals.spi, clk_hz, FLASH_SCK_HZ, FLASH_CS)) })
+        Ok(Algorithm {
+            flash: Mt25q::new(Spi::new(peripherals.spi, clk_hz, FLASH_SCK_HZ, FLASH_CS)),
+        })
     }
 
     fn erase_sector(&mut self, address: u32) -> Result<(), ErrorCode> {

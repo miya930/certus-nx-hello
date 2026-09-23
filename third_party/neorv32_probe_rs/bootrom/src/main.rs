@@ -25,7 +25,13 @@ const FLASH_CS: u8 = 0;
 const CHUNK_BYTES: usize = 256;
 const WORD_BYTES: usize = 4;
 
-global_asm!(".section .text.start", ".global _start", "_start:", "la sp, _stack_top", "j boot");
+global_asm!(
+    ".section .text.start",
+    ".global _start",
+    "_start:",
+    "la sp, _stack_top",
+    "j boot"
+);
 
 /// 命令メモリはアドレス 0 から始まる。
 /// Rust ではアドレス 0 を指すポインタを読み書きできないため、命令メモリへのアクセスはアセンブリで行う。
@@ -65,7 +71,10 @@ fn load_from_flash() {
         let Ok(()) = flash.read(IMAGE_OFFSET + (HEADER_BYTES + start) as u32, bytes);
         // firmware image の長さはワードの倍数にそろえてあるため、ワードごとに書く。
         for (index, word) in bytes.chunks_exact(WORD_BYTES).enumerate() {
-            imem_write(start + index * WORD_BYTES, u32::from_le_bytes(word.try_into().unwrap()));
+            imem_write(
+                start + index * WORD_BYTES,
+                u32::from_le_bytes(word.try_into().unwrap()),
+            );
         }
     }
 }

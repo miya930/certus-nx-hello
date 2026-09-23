@@ -57,7 +57,9 @@ def strip_boilerplate(pages: list[str], margins: list[str]) -> tuple[str, list[s
             return None
         return body
 
-    per_page = [Counter(b for b in map(prose, page.splitlines()) if b) for page in pages]
+    per_page = [
+        Counter(b for b in map(prose, page.splitlines()) if b) for page in pages
+    ]
     counts = Counter(b for page_counts in per_page for b in page_counts.elements())
     # 定型文は 1 ページに 1 回しか現れない。同じページで繰り返す段落はレジスタの説明などの本文なので残す
     repeated = [
@@ -88,10 +90,14 @@ def convert(pdf: Path, out_dir: Path, images: bool) -> Path:
     if images:
         img_dir = out_dir / f"{pdf.stem}_images"
         img_dir.mkdir(exist_ok=True)
-        kwargs.update(write_images=True, image_path=str(img_dir), image_format="png", dpi=150)
+        kwargs.update(
+            write_images=True, image_path=str(img_dir), image_format="png", dpi=150
+        )
 
     chunks = pymupdf4llm.to_markdown(str(pdf), page_chunks=True, **kwargs)
-    md, removed = strip_boilerplate([chunk["text"] for chunk in chunks], margin_texts(pdf))
+    md, removed = strip_boilerplate(
+        [chunk["text"] for chunk in chunks], margin_texts(pdf)
+    )
     for b in removed:
         print(f"  removed boilerplate: {b[:80]}")
 
@@ -106,10 +112,16 @@ def convert(pdf: Path, out_dir: Path, images: bool) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("pdfs", nargs="+", type=Path, help="変換する PDF")
     parser.add_argument(
-        "-o", "--out-dir", type=Path, default=DEFAULT_DIR, help="出力先ディレクトリ (既定は datasheets/)"
+        "-o",
+        "--out-dir",
+        type=Path,
+        default=DEFAULT_DIR,
+        help="出力先ディレクトリ (既定は datasheets/)",
     )
     parser.add_argument("--images", action="store_true", help="図を PNG として書き出す")
     args = parser.parse_args()

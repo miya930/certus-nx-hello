@@ -20,7 +20,11 @@ impl Clock {
     }
 
     pub fn ticker(&self, period_msec: u64) -> Ticker {
-        Ticker { clock: *self, period_msec, next_msec: 0 }
+        Ticker {
+            clock: *self,
+            period_msec,
+            next_msec: 0,
+        }
     }
 }
 

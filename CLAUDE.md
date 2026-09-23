@@ -133,7 +133,8 @@ ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[0]}]
 ## 開発フロー
 
 - Rust は rustfmt、Python は Ruff、VHDL は VSG、Markdown と JSON と YAML は Prettier で整形する。
-  設定は、リポジトリの直下の `rustfmt.toml`、`ruff.toml`、`vsg.yaml`、`.prettierrc.json` に置く。
+  rustfmt と Ruff は既定の設定で使い、設定ファイルを置かない。
+  VSG と Prettier の設定は、リポジトリの直下の `vsg.yaml` と `.prettierrc.json` に置く。
 - コミットする前に、変更したファイルを整形する。
   フォーマッタの版と呼び出し方は、`.claude/settings.json` の hook にそろえる。
 - コミットする前に、変更したデザインが合成・配置配線まで通ることを確認する。

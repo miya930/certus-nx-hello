@@ -66,12 +66,19 @@ fn main() -> ! {
     out.puts_styled(Style::HEADING, "Managed switch on NEORV32.");
     out.puts(" Type \"help\" for the commands.\n");
 
-    let mut config = Config::load(Mt25q::new(Spi::new(peripherals.spi, CLK_HZ, FLASH_SCK_HZ, FLASH_CS)));
+    let mut config = Config::load(Mt25q::new(Spi::new(
+        peripherals.spi,
+        CLK_HZ,
+        FLASH_SCK_HZ,
+        FLASH_CS,
+    )));
     if config.saved().is_some() {
         defmt::info!("Loaded the settings from the SPI Flash");
     } else {
         defmt::warn!("No saved settings in the SPI Flash, using the defaults");
-        console.terminal().puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
+        console
+            .terminal()
+            .puts_styled(Style::WARNING, "No saved settings. Using the defaults.\n");
     }
 
     while gpio.read() & GPIO_IN_PHY_READY == 0 {}

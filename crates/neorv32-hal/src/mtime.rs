@@ -16,7 +16,10 @@ pub struct Mtime {
 impl Mtime {
     /// タイマはコアのクロックで進むため、時間はクロック周波数から求める。
     pub fn new(_clint: pac::Clint, clk_hz: u32) -> Self {
-        Mtime { regs: unsafe { &*pac::Clint::ptr() }, clk_hz }
+        Mtime {
+            regs: unsafe { &*pac::Clint::ptr() },
+            clk_hz,
+        }
     }
 
     /// タイマは 64 ビットで、下位を読む間に上位が繰り上がることがある。

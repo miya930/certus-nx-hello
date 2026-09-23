@@ -18,10 +18,20 @@ pub struct Host<'a> {
 
 impl<'a> Host<'a> {
     /// IP アドレスは configure で与える。
-    pub fn new(mut device: CpuPort, clock: Clock, mac: [u8; 6], storage: &'a mut [SocketStorage<'a>]) -> Self {
+    pub fn new(
+        mut device: CpuPort,
+        clock: Clock,
+        mac: [u8; 6],
+        storage: &'a mut [SocketStorage<'a>],
+    ) -> Self {
         let config = Config::new(EthernetAddress(mac).into());
         let iface = Interface::new(config, &mut device, Self::now(&clock));
-        Host { clock, device, iface, sockets: SocketSet::new(storage) }
+        Host {
+            clock,
+            device,
+            iface,
+            sockets: SocketSet::new(storage),
+        }
     }
 
     fn now(clock: &Clock) -> Instant {
@@ -34,24 +44,38 @@ impl<'a> Host<'a> {
     pub fn process_frame(&mut self) {
         let now = Self::now(&self.clock);
         self.iface.poll_maintenance(now);
-        self.iface.poll_ingress_single(now, &mut self.device, &mut self.sockets);
-        self.iface.poll_egress(now, &mut self.device, &mut self.sockets);
+        self.iface
+            .poll_ingress_single(now, &mut self.device, &mut self.sockets);
+        self.iface
+            .poll_egress(now, &mut self.device, &mut self.sockets);
     }
 
     /// MAC アドレス、IP アドレス、ゲートウェイを設定する。
     pub fn configure(&mut self, settings: &Settings) {
         let [a, b, c, d] = settings.ip;
-        defmt::info!("IP address {=u8}.{=u8}.{=u8}.{=u8}/{=u8}", a, b, c, d, settings.prefix);
-        self.iface.set_hardware_addr(EthernetAddress(settings.mac).into());
+        defmt::info!(
+            "IP address {=u8}.{=u8}.{=u8}.{=u8}/{=u8}",
+            a,
+            b,
+            c,
+            d,
+            settings.prefix
+        );
+        self.iface
+            .set_hardware_addr(EthernetAddress(settings.mac).into());
         self.iface.update_ip_addrs(|addrs| {
             addrs.clear();
             let cidr = Ipv4Cidr::new(Ipv4Address::from(settings.ip), settings.prefix);
-            addrs.push(IpCidr::Ipv4(cidr)).expect("address list is full");
+            addrs
+                .push(IpCidr::Ipv4(cidr))
+                .expect("address list is full");
         });
         let routes = self.iface.routes_mut();
         routes.remove_default_ipv4_route();
         if let Some(gateway) = settings.gateway {
-            routes.add_default_ipv4_route(Ipv4Address::from(gateway)).expect("route table is full");
+            routes
+                .add_default_ipv4_route(Ipv4Address::from(gateway))
+                .expect("route table is full");
         }
     }
 
