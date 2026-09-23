@@ -8,9 +8,8 @@ use flash_algorithm::*;
 use mt25q::Mt25q;
 use neorv32_hal::{pac, spi::Spi};
 
-/// probe-rs は Flash をアドレスで扱うため、SPI Flash のアドレス 0 をこのアドレスに見せる。
-/// NEORV32 のアドレス空間では外部バスにあたり、コアがこのアドレスを読み書きすることはない。
-const WINDOW_BASE: u32 = 0x2000_0000;
+/// probe-rs には、SPI Flash のアドレスをそのまま見せる。
+/// この範囲は命令メモリとデータメモリの外にあり、コアが読み書きすることはないため、probe-rs のメモリの定義と重ならない。
 /// probe-rs に見せるのは、firmware image を置く範囲だけにする。
 /// ビットストリームと設定を消さないためである。範囲は third_party/neorv32_probe_rs/bootrom の IMAGE_OFFSET に合わせる。
 const IMAGE_OFFSET: u32 = 0x00F0_0000;
@@ -29,7 +28,7 @@ struct Algorithm {
 algorithm!(Algorithm, {
     device_name: "MT25QU128",
     device_type: DeviceType::ExtSpi,
-    flash_address: WINDOW_BASE + IMAGE_OFFSET,
+    flash_address: IMAGE_OFFSET,
     flash_size: IMAGE_AREA_BYTES,
     page_size: mt25q::PAGE_BYTES as u32,
     empty_value: 0xFF,
@@ -49,17 +48,17 @@ impl FlashAlgorithm for Algorithm {
     }
 
     fn erase_sector(&mut self, address: u32) -> Result<(), ErrorCode> {
-        let Ok(()) = self.flash.erase_subsector(address - WINDOW_BASE);
+        let Ok(()) = self.flash.erase_subsector(address);
         Ok(())
     }
 
     fn program_page(&mut self, address: u32, data: &[u8]) -> Result<(), ErrorCode> {
-        let Ok(()) = self.flash.program(address - WINDOW_BASE, data);
+        let Ok(()) = self.flash.program(address, data);
         Ok(())
     }
 
     fn read_flash(&mut self, address: u32, data: &mut [u8]) -> Result<(), ErrorCode> {
-        let Ok(()) = self.flash.read(address - WINDOW_BASE, data);
+        let Ok(()) = self.flash.read(address, data);
         Ok(())
     }
 }
